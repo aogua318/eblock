@@ -20,7 +20,9 @@
   不解释“是什么”）。中文注释。
 - **分层与依赖方向**：`sim`（纯逻辑，零 Pygame 依赖）→ `ui`（渲染与输入）→
   `app`（装配与主循环）。`ui` 只能通过 action 数据调用 sim，禁止渲染层直接改游戏状态；
-  sim 通过接口返回结果，不感知 UI。
+  sim 通过接口返回结果，不感知 UI。目录采用“按游戏分包、层内分层”：
+  每个游戏在 `eblock/` 下独立子包（如 `eblock/tetris/`、`eblock/coffee/`），
+  子包内部再按 sim / ui / app / save 分层，互不共享命名空间。
 - **静态检查工具链**：ruff（lint + format 检查）、mypy --strict、pytest。三者在每次
   里程碑提交前必须全绿，作为学习阶段的“提交门槛”。
 

@@ -14,20 +14,22 @@
 | 路径 | 用途 |
 | --- | --- |
 | `docs/` | 所有文档类文件（计划、规范、索引） |
-| `src/eblock/sim/` | 纯逻辑层：经济模拟（零 Pygame 依赖） |
-| `src/eblock/ui/` | 渲染与输入层 |
-| `src/eblock/app/` | 装配层与主循环 |
-| `src/eblock/save/` | 存档层：GameState ↔ JSON |
+| `src/eblock/tetris/` | 俄罗斯方块热身游戏（sim/ui/app/save 分层） |
+| `src/eblock/coffee/` | 咖啡店主项目（阶段 1 起创建） |
 | `config/` | 玩法数值 JSON（配方、价格、事件等） |
 | `scripts/` | 自动挂机模拟等开发脚本 |
 | `saves/` | 运行时生成的存档（不入库） |
 | `tests/` | pytest 测试 |
 
+组织原则：按游戏分包、层内分层。每个游戏在 `src/eblock/` 下拥有独立子包，
+子包内部按 sim（纯逻辑）/ ui（渲染与输入）/ app（装配）/ save（存档）分层。
+
 ## 文件管理规范
 
 - 所有文档类文件统一放在 `docs/`，文件名用英文小写加连字符。
 - 玩法数值一律放 `config/`，代码内禁止硬编码游戏数值。
-- 游戏代码按 sim / ui / app / save 分层，依赖方向只允许向下。
+- 游戏代码按游戏分包：`src/eblock/<game>/`，子包内再按 sim / ui / app / save 分层，
+  依赖方向只允许向下。
 - 开发脚本放 `scripts/`，测试放 `tests/`。
 
 ## 开发环境

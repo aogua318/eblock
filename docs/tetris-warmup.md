@@ -8,11 +8,11 @@
 
 | 训练点 | 落地位置 |
 | --- | --- |
-| 主循环与帧驱动 | `app/main.py` |
-| 键盘事件与输入手感（DAS/ARR） | `ui/input.py` |
+| 主循环与帧驱动 | `eblock/tetris/app/main.py` |
+| 键盘事件与输入手感（DAS/ARR） | `eblock/tetris/ui/input.py` |
 | 数据驱动与配置校验 | `config/tetris.json` |
-| 纯逻辑可测试 | `sim/`（board、rotation、randomizer、scoring、game） |
-| 状态快照与持久化 | `save/highscore.py` |
+| 纯逻辑可测试 | `eblock/tetris/sim/`（board、rotation、randomizer、scoring、game） |
+| 状态快照与持久化 | `eblock/tetris/save/highscore.py` |
 | 分层解耦 | sim 不依赖 pygame；ui 只读状态，不直接改数据 |
 
 ## 2. 游戏规则（v1 范围）
@@ -96,26 +96,31 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
 
 ```
 src/eblock/
-├── sim/
-│   ├── tetromino.py   # PieceType、出生态形状、旋转状态
-│   ├── board.py       # 棋盘存储、碰撞检测、消行
-│   ├── rotation.py    # SRS 旋转公式与踢墙表
-│   ├── randomizer.py  # 7-bag
-│   ├── scoring.py     # 计分与等级
-│   └── game.py        # Game 状态机：step / dt / 锁定 / 结束判定
-├── ui/
-│   ├── input.py       # DAS/ARR 输入处理 → Action
-│   └── renderer.py    # 棋盘、当前方块、Ghost、Next、Hold、面板
-├── app/
-│   └── main.py        # 主循环、暂停、重开、退出
-├── save/
-│   └── highscore.py   # 最高分 JSON 持久化
-config/tetris.json     # 数值配置
-tests/                 # 与 sim/ui/save 对应的测试
+├── tetris/              # 俄罗斯方块独立子包
+│   ├── sim/
+│   │   ├── tetromino.py # PieceType、出生态形状、旋转状态
+│   │   ├── board.py     # 棋盘存储、碰撞检测、消行
+│   │   ├── rotation.py  # SRS 旋转公式与踢墙表
+│   │   ├── randomizer.py# 7-bag
+│   │   ├── scoring.py   # 计分与等级
+│   │   └── game.py      # Game 状态机：step / dt / 锁定 / 结束判定
+│   ├── ui/
+│   │   ├── input.py     # DAS/ARR 输入处理 → Action
+│   │   └── renderer.py  # 棋盘、当前方块、Ghost、Next、Hold、面板
+│   ├── app/
+│   │   └── main.py      # 主循环、暂停、重开、退出
+│   └── save/
+│       └── highscore.py # 最高分 JSON 持久化
+└── coffee/              # 咖啡店主项目（阶段 1 起创建）
+config/tetris.json       # 数值配置
+tests/                   # 按游戏分子目录：tests/tetris/、tests/coffee/
 ```
 
+组织原则：**按游戏分包，层内分层**。每个游戏在 eblock 下拥有独立子包，
+子包内部再按 sim → ui → app → save 分层，互不共享命名空间。
 依赖方向：`sim`（零 pygame 依赖）← `ui` ← `app`；`save` 只依赖标准库。
 `ui` 通过 `Game.step(action, dt)` 驱动 sim，通过 `StepResult.state` 读取展示数据。
+启动命令：`python -m eblock.tetris.app.main`。
 
 ## 5. 核心接口
 
@@ -310,7 +315,8 @@ I 踢墙表：
 
 ### 7.3 DAS/ARR 输入处理
 
-- `ui/input.py` 每帧查询 `pygame.key.get_pressed()`，按配置节奏发射 `MOVE_LEFT/RIGHT`：
+- `eblock/tetris/ui/input.py` 每帧查询 `pygame.key.get_pressed()`，
+  按配置节奏发射 `MOVE_LEFT/RIGHT`：
   按下瞬间发射一次；持续按住超过 `das_ms` 后，每 `arr_ms` 再发射一次。
 - 释放按键即清除该方向状态；同一帧最多产出一个移动 action。
 - 软降用按下/松开事件转换为 `SOFT_DROP_START / SOFT_DROP_END`。
