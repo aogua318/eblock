@@ -12,6 +12,7 @@
 | 文件 | 说明 |
 | --- | --- |
 | [plan.md](plan.md) | 项目学习计划（工程规范版） |
+| [tetris-warmup.md](tetris-warmup.md) | 阶段 0 俄罗斯方块热身项目开发文档 |
 
 ## 维护约定
 
