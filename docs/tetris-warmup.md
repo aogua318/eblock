@@ -78,6 +78,29 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
 }
 ```
 
+字段含义：
+
+| 字段路径 | 含义 |
+| --- | --- |
+| `board.cols` | 棋盘列数（宽度） |
+| `board.rows` | 棋盘总行数，含顶部隐藏出生区 |
+| `board.visible_rows` | 玩家可见的行数（隐藏出生区之下的部分） |
+| `board.spawn_x` | 方块出生原点的列坐标 |
+| `board.spawn_y` | 方块出生原点的行坐标 |
+| `scoring.line_clear` | 同时消 1/2/3/4 行时的基础分数（再乘当前等级） |
+| `scoring.soft_drop_per_cell` | 软降每下移一格的加分 |
+| `scoring.hard_drop_per_cell` | 硬降每下移一格的加分 |
+| `scoring.lines_per_level` | 每消除多少行升 1 级 |
+| `scoring.start_level` | 开局等级（从 1 级开始） |
+| `gravity_ms_per_level` | 各等级对应的自动下落间隔（毫秒），数值越小下落越快 |
+| `max_level` | 最高等级；超过后按 `max_level` 的速度下落 |
+| `timing.lock_delay_ms` | 方块触底后允许继续移动/旋转的宽限时间（毫秒），超时锁定 |
+| `timing.lock_reset_limit` | 触底后成功移动/旋转可重置锁定计时的累计次数上限，超过立即锁定 |
+| `timing.soft_drop_interval_ms` | 按住软降键时每次下移的间隔（毫秒） |
+| `input.das_ms` | 按住左/右键后开始连续移动的延迟（毫秒），0 表示无延迟 |
+| `input.arr_ms` | 连续移动的重复间隔（毫秒），0 表示每帧都移动 |
+| `preview_count` | 右侧面板显示的下一个方块预览数量 |
+
 校验规则（加载失败抛 `ConfigError` 并指出字段路径）：
 
 - `cols` 4–20、`rows` ≥ 20 的整数。
