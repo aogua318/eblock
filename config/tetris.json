@@ -1,0 +1,22 @@
+{
+  "board": { "cols": 10, "rows": 22, "visible_rows": 20, "spawn_x": 4, "spawn_y": 0 },
+  "scoring": {
+    "line_clear": { "1": 100, "2": 300, "3": 500, "4": 800 },
+    "soft_drop_per_cell": 1,
+    "hard_drop_per_cell": 2,
+    "lines_per_level": 10,
+    "start_level": 1
+  },
+  "gravity_ms_per_level": {
+    "1": 1000, "2": 793, "3": 618, "4": 473, "5": 355,
+    "6": 262, "7": 184, "8": 124, "9": 84, "10": 59
+  },
+  "max_level": 10,
+  "timing": {
+    "lock_delay_ms": 500,
+    "lock_reset_limit": 15,
+    "soft_drop_interval_ms": 50
+  },
+  "input": { "das_ms": 170, "arr_ms": 50 },
+  "preview_count": 3
+}
