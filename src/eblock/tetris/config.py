@@ -8,6 +8,7 @@
 依赖方向: 本模块只依赖标准库（dataclasses / pathlib）。
 """
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -89,7 +90,7 @@ DEFAULT_CONFIG_PATH: Path = Path(__file__).resolve().parents[3] / "config" / "te
 # ==================== 第 1 层：通用原语 ====================
 
 
-def _get_field(data: dict[str, Any], path: str, name: str, kind: type) -> Any:
+def _get_field[T](data: dict[str, Any], path: str, name: str, kind: type[T]) -> T:
     """取字段并校验「存在 + 类型」，失败抛 ConfigError（通用原语 1）。
 
     所有模块共用一个取字段函数，保证错误格式统一：
@@ -112,7 +113,7 @@ def _get_field(data: dict[str, Any], path: str, name: str, kind: type) -> Any:
     full = f"{path}.{name}" if path else name
     if name not in data:
         raise ConfigError(full, "缺少必需字段")
-    #获取值，类型判断
+    # 获取值，类型判断
     value = data[name]
     if not isinstance(value, kind):
         raise ConfigError(full, f"类型应为 {kind.__name__}，实际为 {type(value).__name__}")
@@ -175,32 +176,140 @@ def _load_int_dict(data: dict[str, Any], path: str, name: str) -> dict[int, int]
                      键不是数字字符串；
                      值不是 int（需单独排除 bool：True 是 int 的子类）。
     """
-    #获取数据，类型判断
+    # 获取数据，类型判断
     raw = _get_field(data, path, name, dict)
     full = f"{path}.{name}" if path else name
     # 遍历 raw.items()
     result: dict[int, int] = {}
     for key, value in raw.items():
-        if not isinstance(key, str) or not key.isdigit(): #键不是字符串 或 键不是数字
+        if not isinstance(key, str) or not key.isdigit():  # 键不是字符串 或 键不是数字
             raise ConfigError(full, f"键必须为数字字符串，实际为 {key!r}")
-        if not isinstance(value, int) or isinstance(value, bool): #值不是数字 或 键是布尔
+        if not isinstance(value, int) or isinstance(value, bool):  # 值不是数字 或 键是布尔
             raise ConfigError(f"{full}.{key}", f"类型应为 int，实际为 {type(value).__name__}")
         result[int(key)] = value
     return result
 
+
 # ==================== 第 2 层：模块解析 ====================
 # 一个配置块对应一个 _load_* 函数：负责「该块内部」的解析与校验。
 def _load_board(data: dict[str, Any]) -> BoardConfig:
-    pass
-def _load_scoring(data: dict[str, Any]) -> ScoringConfig:
-    pass
-def _load_timing(data: dict[str, Any]) -> TimingConfig:
-    pass
-def _load_input(data: dict[str, Any]) -> InputConfig:
-    pass
-def _load_preview_count(data: dict[str, Any]) -> int:
-    pass
+    """
+    `board.cols` 4–20 的整数；
+    `board.rows` ≥ 20；
+    `board.visible_rows` 1 ≤ v ≤ rows；
+    `board.spawn_x` ∈ [0, cols)；
+    `board.spawn_y` ∈ [0, rows)。
+    """
+    # 类型判断
+    board = _get_field(data, "", "board", dict)
+    config = BoardConfig(
+        cols=_get_field(board, "board", "cols", int),
+        rows=_get_field(board, "board", "rows", int),
+        visible_rows=_get_field(board, "board", "visible_rows", int),
+        spawn_x=_get_field(board, "board", "spawn_x", int),
+        spawn_y=_get_field(board, "board", "spawn_y", int),
+    )
+    # 规则判断
+    _require_range(config.cols, "board.cols", 4, 20)
+    _require_at_least(config.rows, "board.rows", 20)
+    _require_range(config.visible_rows, "board.visible_rows", 1, config.rows)
+    _require_range(config.spawn_x, "board.spawn_x", 0, config.cols - 1)
+    _require_range(config.spawn_y, "board.spawn_y", 0, config.rows - 1)
+    return config
 
+
+def _load_scoring(data: dict[str, Any]) -> ScoringConfig:
+    """
+    - `scoring.line_clear` 的键必须恰好是 1、2、3、4（JSON 中是字符串，先转 int），值均为正整数；
+    - `soft_drop_per_cell`、`hard_drop_per_cell`、`lines_per_level` 为正整数；
+    - `start_level` ∈ [1, max_level]。
+    """
+    scoring = _get_field(data, "", "scoring", dict)
+    config = ScoringConfig(
+        line_clear=_load_int_dict(scoring, "scoring", "line_clear"),
+        soft_drop_per_cell=_get_field(scoring, "scoring", "soft_drop_per_cell", int),
+        hard_drop_per_cell=_get_field(scoring, "scoring", "hard_drop_per_cell", int),
+        lines_per_level=_get_field(scoring, "scoring", "lines_per_level", int),
+        start_level=_get_field(scoring, "scoring", "start_level", int),
+    )
+
+    for key in config.line_clear:
+        _require_range(key, "scoring.line_clear", 1, 4)
+
+    _require_at_least(config.soft_drop_per_cell, "scoring.soft_drop_per_cell", 1)
+    _require_at_least(config.hard_drop_per_cell, "scoring.hard_drop_per_cell", 1)
+    _require_at_least(config.lines_per_level, "scoring.lines_per_level", 1)
+
+    max_level = _get_field(data, "", "max_level", int)
+    _require_range(config.start_level, "scoring.start_level", 1, max_level)
+
+    return config
+
+
+def _load_gravity_ms_per_level(data: dict[str, Any]) -> dict[int, int]:
+    """
+    - `gravity_ms_per_level` 的键转 int 后必须连续覆盖 1..max_level，值均为正数。
+    """
+    config = _load_int_dict(data, "", "gravity_ms_per_level")
+    max_level = _get_field(data, "", "max_level", int)
+    key_list = []
+    for key in config:
+        key_list.append(key)
+    expected_keys = list(range(1, max_level + 1))
+
+    if not key_list == expected_keys:
+        raise ConfigError(
+            "gravity_ms_per_level", f"key 顺序错误:实际顺序为 {key_list}，预期为 {expected_keys}。"
+        )
+
+    return config
+
+
+def _load_timing(data: dict[str, Any]) -> TimingConfig:
+    """
+    - `timing.lock_delay_ms` ∈ [100, 2000]；
+    - `lock_reset_limit` ≥ 0；
+    - `soft_drop_interval_ms` ≥ 1。
+    """
+    timing = _get_field(data, "", "timing", dict)
+    config = TimingConfig(
+        lock_delay_ms=_get_field(timing, "timing", "lock_delay_ms", int),
+        lock_reset_limit=_get_field(timing, "timing", "lock_reset_limit", int),
+        soft_drop_interval_ms=_get_field(timing, "timing", "soft_drop_interval_ms", int),
+    )
+    _require_range(config.lock_delay_ms, "timing.lock_delay_ms", 100, 2000)
+    _require_at_least(config.lock_reset_limit, "timing.lock_reset_limit", 0)
+    _require_at_least(config.soft_drop_interval_ms, "timing.soft_drop_interval_ms", 1)
+    return config
+
+
+def _load_input(data: dict[str, Any]) -> InputConfig:
+    """
+    - `input.das_ms` ∈ [0, 500]；
+    - `input.arr_ms` ∈ [0, 200]。
+    """
+    input_time = _get_field(data, "", "input", dict)
+    config = InputConfig(
+        das_ms=_get_field(input_time, "input", "das_ms", int),
+        arr_ms=_get_field(input_time, "input", "arr_ms", int),
+    )
+    _require_range(config.das_ms, "input.das_ms", 0, 500)
+    _require_range(config.arr_ms, "input.arr_ms", 0, 200)
+    return config
+
+
+def _load_max_level(data: dict[str, Any]) -> int:
+    """- `max_level` ≥ 1。"""
+    max_level = _get_field(data, "", "max_level", int)
+    _require_at_least(max_level, "max_level", 1)
+    return max_level
+
+
+def _load_preview_count(data: dict[str, Any]) -> int:
+    """- `preview_count` ≥ 1。"""
+    preview_count = _get_field(data, "", "preview_count", int)
+    _require_at_least(preview_count, "preview_count", 1)
+    return preview_count
 
 
 def load_default_config() -> TetrisConfig:
@@ -216,4 +325,22 @@ def load_default_config() -> TetrisConfig:
         ConfigError: 默认配置非法（见 load_config）。
         FileNotFoundError: 默认配置文件缺失。
     """
-    raise NotImplementedError
+    with open(DEFAULT_CONFIG_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    # 解析配置 并返回
+    return TetrisConfig(
+        board=_load_board(data),  # 棋盘配置
+        scoring=_load_scoring(data),  # 计分配置
+        gravity_ms_per_level=_load_gravity_ms_per_level(data),  # 各等级重力下落间隔（毫秒/格）
+        max_level=_load_max_level(data),  # 最高等级
+        timing=_load_timing(data),  # 时序配置
+        input=_load_input(data),  # 输入配置
+        preview_count=_load_preview_count(data),  # 预览方块数量
+    )
+
+
+def main():
+    aa=load_default_config()
+    print(aa)
+if __name__ == "__main__":
+    main()
