@@ -4,6 +4,48 @@
 规则定义见 [tetris-warmup.md](tetris-warmup.md)（开发文档）；本指南只回答“怎么做”，
 不回答“是什么”。两者冲突时，以开发文档为准，并回头修订本指南。
 
+## 当前进度（2026-08-13 更新）
+
+| 步骤 | 内容 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| M0 | 配置文件与测试目录 | ✅ 完成 | `config/tetris.json` 与 `tests/tetris/` 已建 |
+| M1-S1 | `config.py` | ✅ 完成 | 代码与 `test_config.py` / `test_default_config.py` 均存在 |
+| M1-S2 | `tetromino.py` | ⚠️ 代码已写，测试缺失 | 需补 `tests/tetris/test_tetromino.py` |
+| M1-S3 | `rotation.py` | ⚠️ 代码已写，测试缺失 | 需补 `tests/tetris/test_rotation.py` |
+| M1-S4 | `board.py` | 🔧 骨架已建，函数未实现 | 四个函数均为 `...` 桩，需实现并补测试 |
+| M1-S5 | `randomizer.py` | ⬜ 未开始 | 7-bag 发牌与存档还原 |
+| M1-S6 | `scoring.py` | ⬜ 未开始 | 计分、等级、速度查表 |
+| M1-S7 | `game.py` | ⬜ 未开始 | 状态机与统一入口（sim 层最后一步） |
+| M2 | `highscore.py` | ⬜ 未开始 | 高分存档 |
+| M3 | UI 与装配 | ⬜ 未开始 | pygame 依赖、input、renderer、main |
+| M4 | 打磨与调优 | ⬜ 未开始 | 画面完善、手感调优、最终验收 |
+
+**维护约定**：每完成一步，把本表状态改为 ✅ 并更新日期；提交时对照各步
+“完成检查清单”逐项核对。
+
+## 下一步执行计划（2026-08-13）
+
+按顺序执行；每步遵循 §0.1 的 TDD 流程（红灯 → 绿灯 → 四项检查全绿）。
+
+1. **补齐 M1-S2 测试**：按 S2 规格写 `tests/tetris/test_tetromino.py`（4 个用例）。
+2. **补齐 M1-S3 测试**：按 S3 规格写 `tests/tetris/test_rotation.py`（9 个用例），
+   重点覆盖踢墙 y 取反、贴左墙踢动、全部失败返回原对象。
+3. **完成 M1-S4**：实现 `board.py` 的 `empty_board` / `collides` / `place` /
+   `clear_lines`，按 S4 规格写 `tests/tetris/test_board.py`（11 个用例）。
+4. **M1-S5**：`randomizer.py`，7-bag 发牌 + save/load 队列。
+5. **M1-S6**：`scoring.py`，四个纯函数。
+6. **M1-S7**：`game.py`，状态机（用例最多的一步，约 30 个），完成 sim 层。
+7. **清理与提交 M1**：
+   - 删除 `tests/data.py`（临时数据文件，其内容已被模块内常量取代）；
+   - 移除 `config.py` 底部的调试用 `main()`；
+   - 重新 `git add` 三个 sim 文件（当前暂存区里是空文件），随后按 §1 的建议
+     提交 `feat(sim): 俄罗斯方块核心逻辑与测试`。
+
+**待决事项**（不阻塞上述步骤，可随时讨论）：
+- `config.py` 的 `_load_gravity_ms_per_level` 要求键**严格按顺序**等于
+  1..max_level，而 S1 规格只要求“连续覆盖”。当前实现更严格：若打算保留严格
+  校验，应把规格同步改严；否则应放宽实现（用集合比较）。
+
 ## 0. 如何使用本指南
 
 ### 0.1 每步流程（全程 TDD）
