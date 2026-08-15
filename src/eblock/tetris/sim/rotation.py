@@ -164,6 +164,7 @@ def try_rotation(
     cells = cells_at_rotation(current.piece_type, new_rotation)
 
     #根据方块种类获取对应的踢墙表
+    kicks: tuple[tuple[int, int], ...]
     if current.piece_type is PieceType.O:
         kicks = ((0, 0),)
     elif current.piece_type is PieceType.I:

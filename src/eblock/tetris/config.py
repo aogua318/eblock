@@ -11,7 +11,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 
 class ConfigError(ValueError):
@@ -74,6 +74,19 @@ class InputConfig:
     arr_ms: int  # 自动移动的间隔（毫秒）
 
 
+# 发牌算法模式：seven_bag=7-bag 全排列；uniform=每次独立等概率；
+# no_repeat=保证连续两次不出同一方块。
+RandomizerMode = Literal["seven_bag", "uniform", "no_repeat"]
+
+# 合法发牌模式集合，供校验与错误消息复用。
+_RANDOMIZER_MODES: frozenset[str] = frozenset({"seven_bag", "uniform", "no_repeat"})
+
+
+@dataclass(frozen=True)
+class RandomizerConfig:
+    mode: RandomizerMode  # 发牌算法模式（见 RandomizerMode 说明）
+
+
 @dataclass(frozen=True)
 class TetrisConfig:
     board: BoardConfig  # 棋盘配置
@@ -82,6 +95,8 @@ class TetrisConfig:
     max_level: int  # 最高等级
     timing: TimingConfig  # 时序配置
     input: InputConfig  # 输入配置
+    randomizer: RandomizerConfig  # 发牌器配置（决定方块随机算法）
+    spawn_random_rotation: bool  # 出生时是否随机旋转（true=随机 0..3 方向）
     preview_count: int  # 预览方块数量
 
 
@@ -298,6 +313,48 @@ def _load_input(data: dict[str, Any]) -> InputConfig:
     return config
 
 
+def _load_randomizer(data: dict[str, Any]) -> RandomizerConfig:
+    """解析并校验发牌器配置（randomizer.mode）。
+
+    `randomizer.mode` 必须是 seven_bag / uniform / no_repeat 三者之一；
+    其他取值视为非法配置，错误消息带完整字段路径。
+
+    参数:
+        data: 顶层配置字典。
+
+    返回:
+        校验通过后的 RandomizerConfig。
+
+    抛出:
+        ConfigError: randomizer 块缺失、mode 缺失、类型非 str，
+            或取值不在合法模式集合内。
+    """
+    randomizer = _get_field(data, "", "randomizer", dict)
+    mode_raw = _get_field(randomizer, "randomizer", "mode", str)
+    if mode_raw not in _RANDOMIZER_MODES:
+        modes = ", ".join(sorted(_RANDOMIZER_MODES))
+        raise ConfigError("randomizer.mode", f"必须是 {modes} 之一，实际为 {mode_raw!r}")
+    return RandomizerConfig(mode=cast(RandomizerMode, mode_raw))
+
+
+def _load_spawn_random_rotation(data: dict[str, Any]) -> bool:
+    """解析并校验出生随机旋转开关（spawn_random_rotation）。
+
+    该字段必须是 JSON 布尔值 true/false；数字 0/1 不是合法布尔，
+    会被类型校验拒绝（isinstance(0, bool) 为 False）。
+
+    参数:
+        data: 顶层配置字典。
+
+    返回:
+        校验通过后的布尔值；True 表示新方块出生时随机取 0..3 旋转状态。
+
+    抛出:
+        ConfigError: 字段缺失或类型不是 bool。
+    """
+    return _get_field(data, "", "spawn_random_rotation", bool)
+
+
 def _load_max_level(data: dict[str, Any]) -> int:
     """- `max_level` ≥ 1。"""
     max_level = _get_field(data, "", "max_level", int)
@@ -335,12 +392,7 @@ def load_default_config() -> TetrisConfig:
         max_level=_load_max_level(data),  # 最高等级
         timing=_load_timing(data),  # 时序配置
         input=_load_input(data),  # 输入配置
+        randomizer=_load_randomizer(data),  # 发牌器配置
+        spawn_random_rotation=_load_spawn_random_rotation(data),  # 出生随机旋转开关
         preview_count=_load_preview_count(data),  # 预览方块数量
     )
-
-
-def main():
-    aa=load_default_config()
-    print(aa)
-if __name__ == "__main__":
-    main()

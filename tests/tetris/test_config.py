@@ -15,6 +15,7 @@ from eblock.tetris.config import (
     BoardConfig,
     ConfigError,
     InputConfig,
+    RandomizerConfig,
     ScoringConfig,
     TetrisConfig,
     TimingConfig,
@@ -24,7 +25,9 @@ from eblock.tetris.config import (
     _load_input,
     _load_max_level,
     _load_preview_count,
+    _load_randomizer,
     _load_scoring,
+    _load_spawn_random_rotation,
     _load_timing,
     load_default_config,
 )
@@ -59,6 +62,8 @@ def _valid_data() -> dict[str, Any]:
         "max_level": 10,
         "timing": {"lock_delay_ms": 500, "lock_reset_limit": 15, "soft_drop_interval_ms": 50},
         "input": {"das_ms": 170, "arr_ms": 50},
+        "randomizer": {"mode": "seven_bag"},
+        "spawn_random_rotation": False,
         "preview_count": 3,
     }
 
@@ -84,6 +89,8 @@ def test_load_default_config_ok() -> None:
         lock_delay_ms=500, lock_reset_limit=15, soft_drop_interval_ms=50
     )
     assert config.input == InputConfig(das_ms=170, arr_ms=50)
+    assert config.randomizer == RandomizerConfig(mode="seven_bag")
+    assert config.spawn_random_rotation is False
     assert config.preview_count == 3
 
 
@@ -354,3 +361,80 @@ def test_preview_count_zero_rejected() -> None:
     data["preview_count"] = 0
     with pytest.raises(ConfigError, match=r"preview_count"):
         _load_preview_count(data)
+
+
+# ==================== randomizer ====================
+
+
+def test_randomizer_mode_valid_ok() -> None:
+    """三种合法发牌模式均可解析。"""
+    for mode in ("seven_bag", "uniform", "no_repeat"):
+        data = _valid_data()
+        data["randomizer"]["mode"] = mode
+        assert _load_randomizer(data).mode == mode
+
+
+def test_randomizer_mode_invalid_rejected() -> None:
+    """未知发牌模式必须报 randomizer.mode 路径。"""
+    data = _valid_data()
+    data["randomizer"]["mode"] = "custom_bag"
+    with pytest.raises(ConfigError, match=r"randomizer\.mode"):
+        _load_randomizer(data)
+
+
+def test_randomizer_mode_wrong_type_rejected() -> None:
+    """randomizer.mode 类型非 str 必须报类型错误。"""
+    data = _valid_data()
+    data["randomizer"]["mode"] = 7
+    with pytest.raises(ConfigError, match=r"randomizer\.mode"):
+        _load_randomizer(data)
+
+
+def test_randomizer_missing_mode_reports_path() -> None:
+    """randomizer.mode 缺失必须报完整路径。"""
+    data = _valid_data()
+    del data["randomizer"]["mode"]
+    with pytest.raises(ConfigError, match=r"randomizer\.mode"):
+        _load_randomizer(data)
+
+
+def test_randomizer_section_missing_reports_path() -> None:
+    """顶层 randomizer 块缺失必须报 randomizer。"""
+    data = _valid_data()
+    del data["randomizer"]
+    with pytest.raises(ConfigError, match=r"randomizer"):
+        _load_randomizer(data)
+
+
+# ==================== spawn_random_rotation ====================
+
+
+def test_spawn_random_rotation_true_ok() -> None:
+    """spawn_random_rotation=true 合法。"""
+    data = _valid_data()
+    data["spawn_random_rotation"] = True
+    assert _load_spawn_random_rotation(data) is True
+
+
+def test_spawn_random_rotation_int_rejected() -> None:
+    """spawn_random_rotation=1 不是合法布尔，必须报类型错误。"""
+    data = _valid_data()
+    data["spawn_random_rotation"] = 1
+    with pytest.raises(ConfigError, match=r"spawn_random_rotation"):
+        _load_spawn_random_rotation(data)
+
+
+def test_spawn_random_rotation_str_rejected() -> None:
+    """spawn_random_rotation="true" 不是合法布尔，必须报类型错误。"""
+    data = _valid_data()
+    data["spawn_random_rotation"] = "true"
+    with pytest.raises(ConfigError, match=r"spawn_random_rotation"):
+        _load_spawn_random_rotation(data)
+
+
+def test_spawn_random_rotation_missing_reports_path() -> None:
+    """spawn_random_rotation 缺失必须报完整路径。"""
+    data = _valid_data()
+    del data["spawn_random_rotation"]
+    with pytest.raises(ConfigError, match=r"spawn_random_rotation"):
+        _load_spawn_random_rotation(data)

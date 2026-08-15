@@ -34,7 +34,10 @@
   保证 UI 与逻辑的边界清晰、可序列化存档。
 - `config`：JSON 文件 + schema 校验模块，加载结果为冻结数据类（如 `MenuConfig`、
   `EventConfig`），游戏运行时只读。
-- `save`：`GameState` ↔ JSON 存档，往返必须一致（有测试保证）。
+- `randomizer`（阶段 0 示范）：`Randomizer` 协议 + `create_randomizer(mode, seed)`
+  工厂，支持 7-bag / 均匀随机 / 免连续重复三种发牌模式，由配置选择算法。
+- `save`：`GameState` ↔ JSON 存档，往返必须一致（有测试保证）；最高分按
+  “模式键”（发牌模式 + 出生旋转）独立存储，不同玩法模式互不影响。
 - `ui`：Pygame 渲染纯展示组件，接收 sim 状态生成面板；输入事件转换为 action 列表。
 
 ## 开发路径（每阶段以学习目标为主线）

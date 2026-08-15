@@ -4,41 +4,37 @@
 规则定义见 [tetris-warmup.md](tetris-warmup.md)（开发文档）；本指南只回答“怎么做”，
 不回答“是什么”。两者冲突时，以开发文档为准，并回头修订本指南。
 
-## 当前进度（2026-08-13 更新）
+## 当前进度（2026-08-15 更新）
 
 | 步骤 | 内容 | 状态 | 说明 |
 | --- | --- | --- | --- |
 | M0 | 配置文件与测试目录 | ✅ 完成 | `config/tetris.json` 与 `tests/tetris/` 已建 |
-| M1-S1 | `config.py` | ✅ 完成 | 代码与 `test_config.py` / `test_default_config.py` 均存在 |
-| M1-S2 | `tetromino.py` | ⚠️ 代码已写，测试缺失 | 需补 `tests/tetris/test_tetromino.py` |
-| M1-S3 | `rotation.py` | ⚠️ 代码已写，测试缺失 | 需补 `tests/tetris/test_rotation.py` |
-| M1-S4 | `board.py` | 🔧 骨架已建，函数未实现 | 四个函数均为 `...` 桩，需实现并补测试 |
-| M1-S5 | `randomizer.py` | ⬜ 未开始 | 7-bag 发牌与存档还原 |
+| M1-S1 | `config.py` | ✅ 完成 | 含新增 `randomizer.mode` / `spawn_random_rotation` 校验 |
+| M1-S2 | `tetromino.py` | ✅ 完成 | 代码与 `test_tetromino.py` 均存在 |
+| M1-S3 | `rotation.py` | ✅ 完成 | 代码与 `test_rotation.py` 均存在 |
+| M1-S4 | `board.py` | ✅ 完成 | 代码与 `test_board.py` 均存在 |
+| M1-S5 | `randomizer.py` | ✅ 完成 | 三种发牌模式 + 工厂 + `test_randomizer.py` |
 | M1-S6 | `scoring.py` | ⬜ 未开始 | 计分、等级、速度查表 |
-| M1-S7 | `game.py` | ⬜ 未开始 | 状态机与统一入口（sim 层最后一步） |
-| M2 | `highscore.py` | ⬜ 未开始 | 高分存档 |
+| M1-S7 | `game.py` | ⬜ 未开始 | 状态机；将消费 `randomizer.mode` 与 `spawn_random_rotation` |
+| M2 | `highscore.py` | ✅ 完成 | 按模式键独立计录 + `test_highscore.py` |
 | M3 | UI 与装配 | ⬜ 未开始 | pygame 依赖、input、renderer、main |
 | M4 | 打磨与调优 | ⬜ 未开始 | 画面完善、手感调优、最终验收 |
 
 **维护约定**：每完成一步，把本表状态改为 ✅ 并更新日期；提交时对照各步
 “完成检查清单”逐项核对。
 
-## 下一步执行计划（2026-08-13）
+## 下一步执行计划（2026-08-15）
 
 按顺序执行；每步遵循 §0.1 的 TDD 流程（红灯 → 绿灯 → 四项检查全绿）。
 
-1. **补齐 M1-S2 测试**：按 S2 规格写 `tests/tetris/test_tetromino.py`（4 个用例）。
-2. **补齐 M1-S3 测试**：按 S3 规格写 `tests/tetris/test_rotation.py`（9 个用例），
-   重点覆盖踢墙 y 取反、贴左墙踢动、全部失败返回原对象。
-3. **完成 M1-S4**：实现 `board.py` 的 `empty_board` / `collides` / `place` /
-   `clear_lines`，按 S4 规格写 `tests/tetris/test_board.py`（11 个用例）。
-4. **M1-S5**：`randomizer.py`，7-bag 发牌 + save/load 队列。
-5. **M1-S6**：`scoring.py`，四个纯函数。
-6. **M1-S7**：`game.py`，状态机（用例最多的一步，约 30 个），完成 sim 层。
-7. **清理与提交 M1**：
+1. **M1-S6**：`scoring.py`，四个纯函数（计分、等级、速度查表）。
+2. **M1-S7**：`game.py`，状态机（用例最多的一步，约 30 个），完成 sim 层；
+   构造时用 `create_randomizer(config.randomizer.mode, seed)`，出生时按
+   `spawn_random_rotation` 决定初始旋转状态。
+3. **M3/M4**：UI 与装配、打磨（含高分按模式键提交）。
+4. **清理与提交 M1**：
    - 删除 `tests/data.py`（临时数据文件，其内容已被模块内常量取代）；
-   - 移除 `config.py` 底部的调试用 `main()`；
-   - 重新 `git add` 三个 sim 文件（当前暂存区里是空文件），随后按 §1 的建议
+   - 重新 `git add` 本次涉及文件（此前暂存区里是旧版本），随后按 §1 的建议
      提交 `feat(sim): 俄罗斯方块核心逻辑与测试`。
 
 **待决事项**（不阻塞上述步骤，可随时讨论）：
@@ -111,7 +107,7 @@ tests/tetris/          # M0 起逐步添加测试文件
 | --- | --- | --- | --- |
 | M0 | 准备：配置文件与测试目录 | 0.1 配置文件、0.2 目录清理 | 约 1 天 |
 | M1 | sim 层：纯逻辑 + 测试 | S1 config → S7 game | 约 1 周 |
-| M2 | 高分存档 | highscore.py | 约 1 天 |
+| M2 | 高分存档（模式独立） | highscore.py | 约 1 天 |
 | M3 | UI、输入与装配 | pygame 依赖、input、renderer、main | 3～5 天 |
 | M4 | 打磨与调优 | 画面完善、手感调优、最终验收 | 2～3 天 |
 
@@ -233,6 +229,14 @@ class InputConfig:
     arr_ms: int
 
 
+RandomizerMode = Literal["seven_bag", "uniform", "no_repeat"]
+
+
+@dataclass(frozen=True)
+class RandomizerConfig:
+    mode: RandomizerMode
+
+
 @dataclass(frozen=True)
 class TetrisConfig:
     board: BoardConfig
@@ -241,6 +245,8 @@ class TetrisConfig:
     max_level: int
     timing: TimingConfig
     input: InputConfig
+    randomizer: RandomizerConfig
+    spawn_random_rotation: bool
     preview_count: int
 
 
@@ -262,6 +268,8 @@ def load_default_config() -> TetrisConfig: ...
 - `timing.lock_delay_ms` ∈ [100, 2000]；`lock_reset_limit` ≥ 0；
   `soft_drop_interval_ms` ≥ 1。
 - `input.das_ms` ∈ [0, 500]；`arr_ms` ∈ [0, 200]。
+- `randomizer.mode` 必须是 `seven_bag` / `uniform` / `no_repeat` 之一。
+- `spawn_random_rotation` 必须是布尔值（JSON true/false；数字 0/1 拒绝）。
 - `preview_count` ≥ 1。
 - 缺失字段、类型错误、JSON 语法错误同样抛 `ConfigError`（JSON 语法错误路径记
   顶层 `tetris.json`）。
@@ -280,6 +288,8 @@ def load_default_config() -> TetrisConfig: ...
 - `test_gravity_keys_not_continuous_rejected`。
 - `test_lock_delay_out_of_range_rejected`。
 - `test_das_out_of_range_rejected`。
+- `test_randomizer_mode_invalid_rejected`：未知模式 → 消息含 `randomizer.mode`。
+- `test_spawn_random_rotation_int_rejected`：1 不是布尔 → 类型错误。
 - `test_preview_count_zero_rejected`。
 - `test_missing_field_reports_path`。
 - `test_json_syntax_error_reports_top_level`。
@@ -459,35 +469,71 @@ def clear_lines(board: Board) -> tuple[Board, int]:
 
 ### S5 randomizer.py
 
-**目标**：可复现的 7-bag 发牌，支持存档还原。
+**目标**：多模式发牌器（7-bag / 均匀随机 / 免连续重复），支持存档还原，
+由配置 `randomizer.mode` 决定算法，`Game` 只依赖统一协议。
 
 **新文件**：`src/eblock/tetris/sim/randomizer.py`
 
 **接口规格**：
 
 ```python
+from typing import Protocol
+
+from eblock.tetris.config import RandomizerMode
 from eblock.tetris.sim.tetromino import PieceType
 
 
-class SevenBag:
+class Randomizer(Protocol):
+    def next(self) -> PieceType: ...
+    def save_queue(self) -> tuple[PieceType, ...]: ...
+    def load_queue(self, queue: tuple[PieceType, ...]) -> None: ...
+
+
+class SevenBag:  # 模式 seven_bag
     def __init__(self, seed: int | None = None) -> None:
         """内部使用 random.Random(seed)；seed=None 表示随机。"""
 
     def next(self) -> PieceType: ...
     def save_queue(self) -> tuple[PieceType, ...]: ...
     def load_queue(self, queue: tuple[PieceType, ...]) -> None: ...
+
+
+class UniformRandom:  # 模式 uniform
+    def __init__(self, seed: int | None = None) -> None: ...
+    def next(self) -> PieceType: ...
+    def save_queue(self) -> tuple[PieceType, ...]: ...
+    def load_queue(self, queue: tuple[PieceType, ...]) -> None: ...
+
+
+class NoRepeat:  # 模式 no_repeat
+    def __init__(self, seed: int | None = None) -> None: ...
+    def next(self) -> PieceType: ...
+    def save_queue(self) -> tuple[PieceType, ...]: ...
+    def load_queue(self, queue: tuple[PieceType, ...]) -> None: ...
+
+
+def create_randomizer(mode: RandomizerMode, seed: int | None = None) -> Randomizer: ...
 ```
 
 行为规则：
 
-- 袋空时生成 `list(PieceType)` 并 `rng.shuffle`。
-- `next()` 从袋尾弹出（O(1)）。
-- `save_queue()` 返回当前袋余量的元组副本（尚未发出的部分）。
-- `load_queue()` 用给定队列替换袋余量；校验无重复、长度 ≤ 7；空队列合法，
-  下次 `next()` 自动补袋。
+- `seven_bag`：袋空时生成 `list(PieceType)` 并 `rng.shuffle`；`next()` 从袋尾
+  弹出（O(1)）；每 7 个连续出块恰为全排列。
+- `uniform`：每次 `rng.choice` 独立等概率抽取七种之一；不维护袋队列，
+  `save_queue()` 恒返回空元组，`load_queue()` 只接受空队列（非空抛 ValueError）。
+- `no_repeat`：以 7-bag 为基础，跨袋衔接时若袋首块与上一块相同则与袋内
+  第二格交换，保证任意连续两次不出同一方块。
+- 队列型模式（seven_bag / no_repeat）：`save_queue()` 返回当前袋余量的元组副本；
+  `load_queue()` 用给定队列替换袋余量，校验无重复、长度 ≤ 7；空队列合法，
+  下次 `next()` 自动补袋。no_repeat 的 `load_queue()` 清空“上一块”记忆。
+- `create_randomizer` 工厂按 mode 返回对应实例；未知模式抛 ValueError
+  （配置层已拦截，防御性保留）。
+- 相同 seed 序列一致；`seed=None` 表示不可复现的随机源。
 
 **边界情况**：每 7 个连续出块恰为全排列；相同 seed 序列一致；
-save→load 后 `next()` 序列与未保存前一致；load 空队列后可继续发牌。
+save→load 后 `next()` 序列与未保存前一致；load 空队列后可继续发牌；
+uniform 载入非空队列拒绝；no_repeat 连续 500 次无相邻重复；
+队列含重复或长度 > 7 拒绝。
 
 **测试文件**：`tests/tetris/test_randomizer.py`
 
@@ -495,8 +541,13 @@ save→load 后 `next()` 序列与未保存前一致；load 空队列后可继�
 - `test_same_seed_same_sequence`。
 - `test_save_load_restores_sequence`：取 3 个后保存，load 后继续取 4 个，
   与直接取 7 个的对应片段一致。
-- `test_load_queue_validates_duplicates`（可选，若实现校验；否则删除本用例）。
+- `test_load_queue_validates_duplicates` / `test_load_queue_too_long_rejected`。
 - `test_load_empty_queue_refills`。
+- `test_uniform_returns_valid_pieces` / `test_uniform_save_queue_is_empty` /
+  `test_uniform_load_empty_queue_ok` / `test_uniform_load_non_empty_rejected`。
+- `test_no_repeat_no_consecutive_duplicates` / `test_no_repeat_same_seed_same_sequence` /
+  `test_no_repeat_save_load_restores_queue` / `test_no_repeat_load_queue_validates_duplicates`。
+- `test_create_randomizer_returns_correct_instance` / `test_create_randomizer_unknown_mode_raises`。
 
 完成检查清单：用例绿；四项检查绿。
 
@@ -560,7 +611,7 @@ lines=9 → 等级不变，lines=10 → +1；level 超过 max_level 时按 max_l
 ```python
 from eblock.tetris.config import TetrisConfig
 from eblock.tetris.sim.board import Board
-from eblock.tetris.sim.randomizer import SevenBag
+from eblock.tetris.sim.randomizer import Randomizer, create_randomizer
 from eblock.tetris.sim.tetromino import PieceState, PieceType
 
 
@@ -614,11 +665,15 @@ class Game:
 
 **内部字段**：
 
-`_config`、`_board: Board`、`_current: PieceState`、`_bag: SevenBag`、
+`_config`、`_board: Board`、`_current: PieceState`、`_randomizer: Randomizer`、
 `_hold: PieceType | None`、`_hold_used: bool`、`_score: int`、`_level: int`、
 `_lines: int`、`_game_over: bool`、`_gravity_accum_ms: int`、
 `_soft_accum_ms: int`、`_soft_active: bool`、`_grounded: bool`、
 `_lock_accum_ms: int`、`_lock_reset_count: int`。
+
+构造时：`_randomizer = create_randomizer(config.randomizer.mode, seed)`；
+出生初始旋转状态 = 0（固定方向）或 `rng.randrange(4)`（当
+`config.spawn_random_rotation=true` 时随机取 0..3）。
 
 **每帧处理顺序**（`step` 内严格按此序）：
 
@@ -640,7 +695,7 @@ class Game:
 | ROTATE_CW/CCW | `try_rotation(current, cw, collides)`；成功同上重置锁定计时并计数 |
 | SOFT_DROP_START/END | 置/清 `_soft_active`；软降计时归零 |
 | HARD_DROP | 计算下落距离 d（直到碰撞前），`_score += hard_drop_per_cell * d`，落到 y+d，立即锁定 |
-| HOLD | `_hold_used` 时忽略；`_hold is None` 时：`_hold = current.piece_type`、从袋取新方块并 spawn（重置计时/接地/计数）；否则交换 current 与 `_hold`、`_hold_used = True`；两种分支都触发 HOLD_SWAP（首次为 None 时也触发）与 PIECE_SPAWN，并做出生碰撞检查 |
+| HOLD | `_hold_used` 时忽略；`_hold is None` 时：`_hold = current.piece_type`、从发牌器取新方块并 spawn（重置计时/接地/计数）；否则交换 current 与 `_hold`、`_hold_used = True`；两种分支都触发 HOLD_SWAP（首次为 None 时也触发）与 PIECE_SPAWN，并做出生碰撞检查 |
 
 **锁定表**（锁定即执行，事件按此顺序追加）：
 
@@ -650,18 +705,19 @@ class Game:
    `_lines += cleared`；`new_level = level_after_lines(...)`；若升级则追加
    `LEVEL_UP` 并更新 `_level`。
 3. `_hold_used = False`；清空锁定/接地/软降状态。
-4. 从袋取下一个方块 spawn；追加 `PIECE_SPAWN`。
+4. 从发牌器取下一个方块 spawn（初始旋转状态按 `spawn_random_rotation` 决定，
+   见构造说明）；追加 `PIECE_SPAWN`。
 5. 出生碰撞检查：若新方块（含 y≥0 的格）与棋盘碰撞 → `_game_over = True`，
    追加 `GAME_OVER`（整个对局仅此一次）。
 
 **其他方法**：
 
 - `to_state()`：`ghost_y = current.y + 下落距离`（下落距离 = 从当前位置连续下移
-  直到碰撞前的步数）；`next_queue = _bag.save_queue()`。
-- `load_state(state)`：恢复全部字段；`_bag.load_queue(state.next_queue)`；
+  直到碰撞前的步数）；`next_queue = _randomizer.save_queue()`（uniform 模式为空元组）。
+- `load_state(state)`：恢复全部字段；`_randomizer.load_queue(state.next_queue)`；
   计时器全部清零、`_soft_active = False`、`_grounded = not 可下移`。
 - `restart()`：等同于用新随机种子（seed=None）重新构造 Game。
-- 初始化：空棋盘、`score=0`、`level=start_level`、`lines=0`，从袋 spawn 首块
+- 初始化：空棋盘、`score=0`、`level=start_level`、`lines=0`，从发牌器 spawn 首块
   （不发射事件；空棋盘必然不碰撞）。
 
 **可序列化约束**：`GameState` 的每个字段都是 int / str 无关的纯数据
@@ -749,13 +805,21 @@ load_state 后继续对局行为一致；next_queue 经 load_state 往返后发�
 
 ## 4. M2 高分存档
 
-**目标**：最高分 JSON 持久化，损坏回退不崩溃。
+**目标**：按模式键独立的最高分 JSON 持久化，损坏回退不崩溃。
+模式键 = 发牌模式 + 出生旋转（`mode_key`），不同模式纪录互不影响。
 
 **新文件**：`src/eblock/tetris/save/highscore.py`
 
 **接口规格**：
 
 ```python
+from collections.abc import Mapping
+from pathlib import Path
+
+
+DEFAULT_HIGHSCORE_PATH: Path  # <仓库根>/saves/highscores.json
+
+
 @dataclass(frozen=True)
 class HighScore:
     score: int
@@ -768,35 +832,59 @@ def new_highscore(score: int, level: int, lines: int) -> HighScore:
     """date 取今天（datetime.date.today().isoformat()）。"""
 
 
-def load_highscore(path: Path) -> HighScore:
-    """文件不存在或内容非法时打印警告到 stderr 并返回 HighScore(0, 0, 0, "")。"""
-
-
-def save_highscore(path: Path, highscore: HighScore) -> None:
-    """父目录不存在则创建；JSON 字段为 score/level/lines/date。"""
+def mode_key(randomizer_mode: str, spawn_random_rotation: bool) -> str:
+    """返回 <发牌模式>_<fixed|random>，如 seven_bag_fixed。"""
 
 
 def is_new_record(score: int, current: HighScore) -> bool:
-    """score > current.score。"""
+    """score > current.score（严格大于）。"""
+
+
+def load_highscores(path: Path) -> dict[str, HighScore]:
+    """文件缺失/损坏 → 警告 + 空字典；单条非法 → 跳过并警告。"""
+
+
+def save_highscores(path: Path, records: Mapping[str, HighScore]) -> None:
+    """父目录不存在则创建；JSON 为 {模式键: {score, level, lines, date}}。"""
+
+
+class HighscoreStore:
+    def __init__(self, path: Path = DEFAULT_HIGHSCORE_PATH) -> None:
+        """构造时自动加载磁盘纪录（损坏回退空记录）。"""
+
+    def reload(self) -> None: ...
+    def get_highscore(self, key: str) -> HighScore:
+        """无纪录时返回 HighScore(0, 0, 0, "")。"""
+
+    def submit(self, key: str, score: int, level: int, lines: int) -> bool:
+        """破纪录则更新内存并落盘；返回是否破纪录。"""
+
+    def save(self) -> None: ...
 ```
 
-校验规则：score/level/lines 必须是非负 int；date 必须是非空 str；
-任一不满足即视为损坏 → 警告 + 默认值。
+校验规则：score/level/lines 必须是非负 int（bool 不算）；date 必须是非空 str；
+任一不满足即视为损坏 → 跳过该条 + 警告；整文件不是 JSON 对象 → 空记录 + 警告。
 
 **边界情况**：文件不存在；JSON 语法损坏；字段类型错误；父目录不存在；
-新纪录等于旧纪录不算破纪录（严格大于）。
+新纪录等于旧纪录不算破纪录（严格大于）；不同模式键纪录互不影响；
+损坏只影响单条纪录时其余模式正常加载。
 
 **测试文件**：`tests/tetris/test_highscore.py`
 
-- `test_load_missing_file_returns_default`。
+- `test_load_missing_file_returns_empty`。
 - `test_save_and_load_roundtrip`。
-- `test_load_corrupt_json_returns_default`（写入非法 JSON，断言警告输出到 stderr）。
-- `test_load_wrong_types_returns_default`。
+- `test_load_corrupt_json_returns_empty`（写入非法 JSON，断言警告输出到 stderr）。
+- `test_load_wrong_types_returns_empty` / `test_load_skips_only_invalid_record`。
 - `test_new_highscore_uses_today`。
 - `test_is_new_record_strict_greater`：相等不算。
 - `test_save_creates_parent_directory`。
+- `test_mode_key_combines_settings`。
+- `test_store_submit_returns_whether_new_record`。
+- `test_store_records_per_mode_independent`。
+- `test_store_missing_mode_returns_default`。
+- `test_store_persists_across_instances`。
 
-完成检查清单：用例绿；四项检查绿；本模块无 pygame 导入。
+完成检查清单：用例绿；四项检查绿；本模块只依赖标准库、无 pygame 导入。
 
 ## 5. M3 UI 与装配
 
@@ -963,14 +1051,15 @@ if __name__ == "__main__":
 
 1. `pygame.init()`，创建窗口（约 560×640，标题 “eblock - Tetris”），`pygame.time.Clock()`。
 2. 加载 `load_default_config()`；`Game(config)`；`InputController(das_ms, arr_ms)`；
-   `Renderer(screen, config)`；`load_highscore(saves/highscore.json)`。
+   `Renderer(screen, config)`；`HighscoreStore()`（构造时自动加载）。
 3. 每帧：`dt_ms = clock.tick(60)`（封顶 60 FPS）。
 4. 事件处理（不传给 sim 的）：QUIT → 退出；P → 切暂停（game over 时无效）；
    R → `game.restart()` 并清输入状态；Esc → 退出。
 5. 未暂停且未结束：`action = input_controller.step(pressed, keydown, keyup)`；
-   `result = game.step(action, dt_ms)`；若 events 含 `GAME_OVER` 且
-   `is_new_record(state.score, highscore)` → `save_highscore(...)` 并更新内存纪录
-   （用守卫标志保证一局只写一次）。
+   `result = game.step(action, dt_ms)`；若 events 含 `GAME_OVER`，用当前模式键
+   `store.submit(mode_key(config.randomizer.mode, config.spawn_random_rotation),
+   state.score, state.level, state.lines)` 提交（破纪录才落盘，用守卫标志保证
+   一局只写一次）。
 6. `renderer.draw(state, highscore, paused, game_over)`；`pygame.display.flip()`。
 
 启动命令：`.venv\Scripts\python -m eblock.tetris.app.main`。
@@ -982,7 +1071,7 @@ if __name__ == "__main__":
 - 自然落地 500ms 后锁定；硬降/软降触底立即锁定。
 - 消行计分与升级正确；一局能从开始玩到 Game Over。
 - 暂停（P）恢复（P）、重开（R）、退出（Esc）正常。
-- 结束后高分写入 `saves/highscore.json`；再开一局面板显示该纪录。
+- 结束后高分按当前模式键写入 `saves/highscores.json`；再开一局面板显示该纪录。
 - 四项检查全绿。
 
 ## 6. M4 打磨与调优
@@ -1048,7 +1137,12 @@ if __name__ == "__main__":
 
 - `config.py` 是开发文档模块清单之外新增的模块，职责为加载与校验。
 - 旋转用依赖注入 `collides` 回调，rotation 不依赖 board。
-- `SevenBag` 支持 seed 注入与袋余量存取，保证测试可复现、存档可还原。
+- 发牌器抽象为 `Randomizer` 协议 + `create_randomizer` 工厂；`seven_bag` /
+  `uniform` / `no_repeat` 三种算法支持 seed 注入与袋余量存取，保证测试可复现、
+  存档可还原；`uniform` 无袋队列、不可精确还原（设计取舍）。
+- `spawn_random_rotation` 是玩法开关：开启后出生旋转状态随机取 0..3，
+  由 S7 game.py 消费；该开关与发牌模式共同构成高分模式键。
+- 高分按模式键独立存储（`HighscoreStore`），单条损坏跳过、整文件损坏回退空记录。
 - 固定语义：动作 → 软降 → 重力 → 锁定；消行先按旧等级计分再升级；
   软降触底立即锁定；成功移动/旋转才重置锁定计时；spawn 出生碰撞只触发一次
   GAME_OVER。

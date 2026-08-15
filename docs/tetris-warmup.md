@@ -28,6 +28,9 @@
 - 7 种方块 `I O T S Z J L`，采用标准 SRS（Super Rotation System）旋转与踢墙表。
 - 旋转状态 `0 / R / 2 / L`（顺时针递增）；同时支持顺时针与逆时针旋转。
 - O 方块旋转后形状不变，无踢墙表（旋转状态允许变化，但格子集合相同）。
+- 出生方向：默认固定为初始方向（rotation=0）；当配置 `spawn_random_rotation=true`
+  时，新方块出生时随机取 0..3 之一作为初始旋转状态。
+- 出块顺序由配置 `randomizer.mode` 决定（7-bag / 纯随机 / 免连续重复，见 §6.4）。
 
 ### 2.3 操作
 
@@ -74,6 +77,8 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
     "soft_drop_interval_ms": 50
   },
   "input": { "das_ms": 170, "arr_ms": 50 },
+  "randomizer": { "mode": "seven_bag" },
+  "spawn_random_rotation": false,
   "preview_count": 3
 }
 ```
@@ -99,6 +104,8 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
 | `timing.soft_drop_interval_ms` | 按住软降键时每次下移的间隔（毫秒） |
 | `input.das_ms` | 按住左/右键后开始连续移动的延迟（毫秒），0 表示无延迟 |
 | `input.arr_ms` | 连续移动的重复间隔（毫秒），0 表示每帧都移动 |
+| `randomizer.mode` | 发牌算法：`seven_bag`（7-bag，默认）/ `uniform`（纯随机）/ `no_repeat`（免连续重复） |
+| `spawn_random_rotation` | 出生时是否随机旋转：false=固定初始方向；true=随机 0..3 方向 |
 | `preview_count` | 右侧面板显示的下一个方块预览数量 |
 
 校验规则（加载失败抛 `ConfigError` 并指出字段路径）：
@@ -107,11 +114,14 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
 - `line_clear` 必须恰好包含键 `1`–`4`，值均为正整数。
 - `gravity_ms_per_level` 的键必须覆盖 `1..max_level` 连续整数，值为正数。
 - `lock_delay_ms` 100–2000；`das_ms` 0–500；`arr_ms` 0–200。
+- `randomizer.mode` 必须是 `seven_bag` / `uniform` / `no_repeat` 之一。
+- `spawn_random_rotation` 必须是布尔值（数字 0/1 不算布尔）。
 - `preview_count` ≥ 1。
 
 ### 3.2 配置与代码常量边界
 
 - 进 config：分数、等级速度、锁定延迟、软降间隔、DAS/ARR、预览数量、棋盘尺寸。
+- 进 config：发牌模式（随机算法选择）与出生随机旋转开关——它们是玩法可选项。
 - 留代码：方块形状与 SRS 踢墙表——它们是游戏规则几何，不是可调参数值。
 - 原则：凡是“想调难度/手感时可能改的值”进 config；凡是“改了就不是 Tetris”的规则进代码。
 
@@ -267,11 +277,20 @@ I 踢墙表：
 3. 偏移后所有格子无碰撞 → 旋转成功（状态改变 + 原点移动该偏移）。
 4. 全部偏移失败 → 旋转不生效，状态与位置不变。
 
-### 6.4 7-bag 随机
+### 6.4 发牌器（随机算法）
 
-- 维护一个洗牌后的 7 种方块列表；取空后重新洗牌。
-- 每 7 个连续出块恰好包含全部 7 种各一次。
-- `GameState.next_queue` 保存完整袋余量，保证存档可完整还原发牌序列。
+发牌器统一实现 `Randomizer` 协议（`next` / `save_queue` / `load_queue`），
+由配置 `randomizer.mode` 选择具体算法，`Game` 通过工厂 `create_randomizer(mode, seed)`
+创建实例，不感知算法细节。三种模式：
+
+| 模式 | 行为 | 存档语义 |
+| --- | --- | --- |
+| `seven_bag` | 维护洗牌后的 7 种方块列表；取空后重新洗牌；每 7 个连续出块恰好包含全部 7 种各一次 | `save_queue` 保存完整袋余量，`load_queue` 可精确还原发牌序列 |
+| `uniform` | 每次独立等概率抽取七种之一（真随机，允许连续同块） | 无袋队列：`save_queue` 恒为空，不还原序列 |
+| `no_repeat` | 以 7-bag 为基础，跨袋衔接时调整首块，保证任意连续两次不出同一方块 | `save_queue` 保存袋余量；`load_queue` 不恢复“上一块”记忆，仅保证免重复性质 |
+
+- `save_queue` / `load_queue` 均校验“无重复、长度 ≤ 7”。
+- 相同 `seed` 下序列可复现；`seed=None` 表示不可复现的随机源。
 
 ### 6.5 碰撞检测
 
@@ -352,10 +371,12 @@ I 踢墙表：
 
 ## 8. 存档：高分
 
-- 文件 `saves/highscore.json`：`{ "score": int, "level": int, "lines": int, "date": str }`。
-- 对局结束（GAME_OVER）时，若得分高于已存纪录则覆盖。
-- 读取时校验字段类型；JSON 损坏或非法 → 回退默认值并打印警告，不崩溃。
-- v1 只存最高一条，不做排行榜与中局存档。
+- 文件 `saves/highscores.json`：`{ "<模式键>": { "score": int, "level": int, "lines": int, "date": str } }`。
+- **模式键** = `<发牌模式>_<出生旋转>`，例如 `seven_bag_fixed`、`uniform_random`；
+  不同模式键的最高分独立记录，互不影响。
+- 对局结束（GAME_OVER）时，按当前模式键提交成绩；严格高于该模式已存纪录才覆盖。
+- 读取时逐条校验字段类型；整文件损坏或单条非法 → 回退/跳过并打印警告，不崩溃。
+- v1 每个模式只存最高一条，不做排行榜与中局存档。
 
 ## 9. 测试计划
 
@@ -365,10 +386,10 @@ I 踢墙表：
 | rotation | T 顺/逆时针各转一次结果正确；I 水平↔垂直；贴墙 0→R 踢墙生效；全部偏移失败时旋转被拒绝 |
 | board | 左右/下越界与重叠碰撞；空棋盘可放置；y<0 视为空 |
 | board 消行 | 同时消 1/2/3/4 行棋盘重建正确；上方行正确下移；无残留悬空格 |
-| randomizer | 每 7 个一组为全排列；连续 1000 次抽样无重复缺失 |
+| randomizer | 多模式：7-bag 每 7 个一组全排列；uniform 独立等概率；no_repeat 连续两次不重复；save/load 还原与校验 |
 | scoring | 各档消行 × 等级正确；软降/硬降加分正确；等级升级时机正确 |
 | game | 重力按 dt 累计下落；触地锁定延迟与重置上限；软降触底立即锁定；硬降立即到底；hold 每落一次限一次；出生碰撞 → 仅一次 GAME_OVER |
-| highscore | 保存/读取往返一致；损坏文件回退默认值 |
+| highscore | 按模式键独立记录；保存/读取往返一致；损坏文件回退默认值 |
 
 静态检查门槛：`ruff check .`、`ruff format --check .`、`mypy src`（strict）、`pytest`，
 每次提交前必须全绿。
@@ -389,15 +410,18 @@ I 踢墙表：
 
 - 工程：四项检查全绿；`sim` 可脱离 pygame 独立运行与测试；配置全部外置且校验器覆盖错误路径。
 - 玩法：完整一局从开始到结束；重开、暂停、高分持久化正常。
-- 规则：7-bag 无连续重复异常；T/I 贴墙、贴地旋转踢墙生效；hold 每落一次限一次；
-  ghost 位置与硬降落点一致。
+- 规则：发牌模式由配置决定且三种算法行为符合 §6.4 定义；T/I 贴墙、贴地旋转踢墙生效；
+  hold 每落一次限一次；ghost 位置与硬降落点一致；不同模式高分独立。
 - 手感：修改 `config/tetris.json` 中的 das/arr/gravity 后实际生效。
 
 ## 12. 决策记录与假设
 
 - 采用 SRS + 7-bag + hold + ghost（标准 guideline 子集）；T-spin/combo/B2B 明确排除。
+- 发牌器做成可插拔：`Randomizer` 协议 + `create_randomizer` 工厂，模式由配置决定；
+  `uniform` 不持久化随机数状态，`no_repeat` 只恢复袋余量、不恢复“上一块”记忆。
 - 方块形状与踢墙表是规则常量放代码；分数/速度/延迟等调参值放 config。
 - 中局存档不做，只持久化最高分；暂停归 app 层，sim 不感知。
 - 出生原点统一 `(4, 0)`，允许格子位于 `y = -1`，保证出生完全隐藏且逻辑统一。
+- 出生方向默认固定，可配置为随机旋转；该开关是玩法选项，随模式键参与高分隔离。
 - 软降触底立即锁定；自然落地走锁定延迟；O 方块无踢墙表。
 - 文档与注释用中文，代码标识符用英文；颜色仅作展示，不属于游戏数值。

@@ -18,5 +18,7 @@
     "soft_drop_interval_ms": 50
   },
   "input": { "das_ms": 170, "arr_ms": 50 },
+  "randomizer": { "mode": "seven_bag" },
+  "spawn_random_rotation": false,
   "preview_count": 3
 }
