@@ -35,12 +35,10 @@
 ## 开发环境
 
 - Python >= 3.12
-- 工具链：ruff（lint + format）、mypy --strict（类型检查）、pytest（测试）
+- 工具链：uv（环境与依赖管理）、ruff（lint + format）、mypy --strict（类型检查）、pytest（测试）
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+uv sync --extra dev
 ```
 
 ## 提交门槛
@@ -48,10 +46,10 @@ pip install -e ".[dev]"
 每次里程碑提交前必须全绿：
 
 ```powershell
-ruff check .
-ruff format --check .
-mypy src
-pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src
+uv run pytest
 ```
 
 ## 开发进度

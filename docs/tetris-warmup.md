@@ -391,8 +391,8 @@ I 踢墙表：
 | game | 重力按 dt 累计下落；触地锁定延迟与重置上限；软降触底立即锁定；硬降立即到底；hold 每落一次限一次；出生碰撞 → 仅一次 GAME_OVER |
 | highscore | 按模式键独立记录；保存/读取往返一致；损坏文件回退默认值 |
 
-静态检查门槛：`ruff check .`、`ruff format --check .`、`mypy src`（strict）、`pytest`，
-每次提交前必须全绿。
+静态检查门槛：`uv run ruff check .`、`uv run ruff format --check .`、
+`uv run mypy src`（strict）、`uv run pytest`，每次提交前必须全绿。
 
 ## 10. 实施步骤与里程碑
 

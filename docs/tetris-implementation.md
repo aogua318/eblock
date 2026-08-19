@@ -66,14 +66,14 @@
 ### 0.2 工程纪律（每次提交前必须全绿）
 
 ```powershell
-.venv\Scripts\ruff check .
-.venv\Scripts\ruff format --check .
-.venv\Scripts\mypy src
-.venv\Scripts\pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src
+uv run pytest
 ```
 
 如果 `ruff format --check` 报“would be reformatted”，先运行
-`.venv\Scripts\ruff format .` 再复验。注意：ruff 也会格式化 Markdown 内嵌代码块，
+`uv run ruff format .` 再复验。注意：ruff 也会格式化 Markdown 内嵌代码块，
 这是预期行为。
 
 ### 0.3 分层铁律
@@ -193,7 +193,7 @@ M4 结束提交 `feat(app): 主循环装配与打磨`。
 - `src/eblock/` 下只有 `tetris/`。
 - 四项检查仍全绿（现有 `tests/test_smoke.py` 通过）。
 
-## 3. M1 sim 层（TDD，7 步）
+## 3. M1 sim 层（TDD，8 步）
 
 ### S1 config.py
 
@@ -303,6 +303,9 @@ def load_default_config() -> TetrisConfig: ...
 - `test_preview_count_zero_rejected`。
 - `test_missing_field_reports_path`。
 - `test_json_syntax_error_reports_top_level`。
+
+另有 `tests/tetris/test_default_config.py`：`load_default_config()` 公共入口端到端
+测试（冻结实例、字段与磁盘配置一致、重复调用幂等），未列入上面清单。
 
 完成检查清单：所有用例绿；四项检查绿；`load_default_config()` 可直接运行。
 
@@ -811,7 +814,7 @@ load_state 后继续对局行为一致；next_queue 经 load_state 往返后发�
 - 用例全绿；四项检查绿。
 - `sim` 无 pygame 依赖验证：
   `Select-String -Path src\eblock\tetris\sim\*.py -Pattern 'pygame'` 无输出；
-  `.venv\Scripts\python -c "import eblock.tetris.sim.game"` 正常。
+  `uv run python -c "import eblock.tetris.sim.game"` 正常。
 
 ## 4. M2 高分存档
 
@@ -911,7 +914,7 @@ tetris = [
 然后安装：
 
 ```powershell
-.venv\Scripts\python -m pip install -e ".[dev,tetris]"
+uv sync --extra dev --extra tetris
 ```
 
 说明：pygame-ce 是 Pygame 社区维护版，`import pygame` 用法与官方一致。
@@ -1072,7 +1075,7 @@ if __name__ == "__main__":
    一局只写一次）。
 6. `renderer.draw(state, highscore, paused, game_over)`；`pygame.display.flip()`。
 
-启动命令：`.venv\Scripts\python -m eblock.tetris.app.main`。
+启动命令：`uv run python -m eblock.tetris.app.main`。
 
 ### 5.5 手动验收清单（M3 完成条件）
 
