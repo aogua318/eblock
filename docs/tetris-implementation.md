@@ -4,7 +4,7 @@
 规则定义见 [tetris-warmup.md](tetris-warmup.md)（开发文档）；本指南只回答“怎么做”，
 不回答“是什么”。两者冲突时，以开发文档为准，并回头修订本指南。
 
-## 当前进度（2026-08-15 更新）
+## 当前进度（2026-08-19 更新）
 
 | 步骤 | 内容 | 状态 | 说明 |
 | --- | --- | --- | --- |
@@ -23,24 +23,34 @@
 **维护约定**：每完成一步，把本表状态改为 ✅ 并更新日期；提交时对照各步
 “完成检查清单”逐项核对。
 
-## 下一步执行计划（2026-08-15）
+## 下一步执行计划（2026-08-19）
 
 按顺序执行；每步遵循 §0.1 的 TDD 流程（红灯 → 绿灯 → 四项检查全绿）。
 
-1. **M1-S6**：`scoring.py`，四个纯函数（计分、等级、速度查表）。
-2. **M1-S7**：`game.py`，状态机（用例最多的一步，约 30 个），完成 sim 层；
+1. **M1-S5.5**：修复 `config.py` 校验缺口并补测试（规格已写但实现未覆盖）：
+   - `scoring.line_clear` 的值必须为正整数（当前只校验键）；
+   - `scoring.line_clear` 的键必须恰好是 {1, 2, 3, 4}（当前只校验键 ∈ [1,4]，
+     缺键不会被拒绝）；
+   - `gravity_ms_per_level` 的值必须为正数（当前只校验键顺序）。
+2. **M1-S6**：`scoring.py`，四个纯函数（计分、等级、速度查表）。
+3. **M1-S7**：`game.py`，状态机（用例最多的一步，约 30 个），完成 sim 层；
    构造时用 `create_randomizer(config.randomizer.mode, seed)`，出生时按
    `spawn_random_rotation` 决定初始旋转状态。
-3. **M3/M4**：UI 与装配、打磨（含高分按模式键提交）。
-4. **清理与提交 M1**：
-   - 删除 `tests/data.py`（临时数据文件，其内容已被模块内常量取代）；
+4. **M3/M4**：UI 与装配、打磨（含高分按模式键提交）。
+5. **清理与提交 M1**：
    - 重新 `git add` 本次涉及文件（此前暂存区里是旧版本），随后按 §1 的建议
      提交 `feat(sim): 俄罗斯方块核心逻辑与测试`。
 
 **待决事项**（不阻塞上述步骤，可随时讨论）：
-- `config.py` 的 `_load_gravity_ms_per_level` 要求键**严格按顺序**等于
-  1..max_level，而 S1 规格只要求“连续覆盖”。当前实现更严格：若打算保留严格
-  校验，应把规格同步改严；否则应放宽实现（用集合比较）。
+- `load_config(path)` 尚未实现（S1 接口规格列了它，实际只有
+  `load_default_config()`）。两个方向：按规格补实现，或把规格简化为仅保留
+  默认入口；待用户拍板。
+
+**已落定决策（2026-08-19）**：
+- `_load_gravity_ms_per_level` 保留**严格按顺序**等于 1..max_level 的校验：
+  `test_gravity_keys_out_of_order_rejected` 已明确断言顺序（JSON 键顺序即
+  文件书写顺序），严格校验能提前发现手写配置的键顺序笔误。S1 规格与
+  tetris-warmup.md §3.1 已同步改为“严格按顺序覆盖”。
 
 ## 0. 如何使用本指南
 
@@ -264,7 +274,7 @@ def load_default_config() -> TetrisConfig: ...
 - `scoring.line_clear` 的键必须恰好是 1、2、3、4（JSON 中是字符串，先转 int），
   值均为正整数；`soft_drop_per_cell`、`hard_drop_per_cell`、
   `lines_per_level` 为正整数；`start_level` ∈ [1, max_level]。
-- `gravity_ms_per_level` 的键转 int 后必须连续覆盖 1..max_level，值均为正数。
+- `gravity_ms_per_level` 的键转 int 后必须严格按顺序覆盖 1..max_level，值均为正数。
 - `timing.lock_delay_ms` ∈ [100, 2000]；`lock_reset_limit` ≥ 0；
   `soft_drop_interval_ms` ≥ 1。
 - `input.das_ms` ∈ [0, 500]；`arr_ms` ∈ [0, 200]。

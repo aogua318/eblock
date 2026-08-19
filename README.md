@@ -58,7 +58,7 @@ pytest
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| 0 | [俄罗斯方块热身游戏](docs/tetris-warmup.md)（[实施指南](docs/tetris-implementation.md)） | 未开始 |
+| 0 | [俄罗斯方块热身游戏](docs/tetris-warmup.md)（[实施指南](docs/tetris-implementation.md)） | 进行中（sim 核心与高分存档已完成；game、UI 待做） |
 | 1 | 控制台版核心循环 | 未开始 |
 | 2 | GUI 完整版 | 未开始 |
 | 3 | 数值平衡与打磨 | 未开始 |

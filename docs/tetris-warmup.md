@@ -112,7 +112,7 @@ T-spin 判定、Combo、Back-to-Back、5-bag、幽灵入场规则、中局存档
 
 - `cols` 4–20、`rows` ≥ 20 的整数。
 - `line_clear` 必须恰好包含键 `1`–`4`，值均为正整数。
-- `gravity_ms_per_level` 的键必须覆盖 `1..max_level` 连续整数，值为正数。
+- `gravity_ms_per_level` 的键必须严格按顺序覆盖 `1..max_level` 连续整数，值为正数。
 - `lock_delay_ms` 100–2000；`das_ms` 0–500；`arr_ms` 0–200。
 - `randomizer.mode` 必须是 `seven_bag` / `uniform` / `no_repeat` 之一。
 - `spawn_random_rotation` 必须是布尔值（数字 0/1 不算布尔）。
