@@ -76,6 +76,7 @@ class InputConfig:
 
 # 发牌算法模式：seven_bag=7-bag 全排列；uniform=每次独立等概率；
 # no_repeat=保证连续两次不出同一方块。
+# Literal 必须是[]里的值
 RandomizerMode = Literal["seven_bag", "uniform", "no_repeat"]
 
 # 合法发牌模式集合，供校验与错误消息复用。

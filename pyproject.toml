@@ -18,6 +18,9 @@ dev = [
     "mypy>=1.11",
     "pytest>=8.0",
 ]
+tetris = [
+    "pygame-ce>=2.5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eblock"]
@@ -37,3 +40,7 @@ python_version = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
