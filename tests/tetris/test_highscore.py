@@ -57,7 +57,8 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
 def test_save_creates_parent_directory(tmp_path: Path) -> None:
     """父目录不存在时 save_highscores 自动创建。"""
     path = tmp_path / "nested" / "deep" / "scores.json"
-    save_highscores(path, {"uniform_random": _valid_record()})
+    record = HighScore(score=100, level=1, lines=0, date="2026-08-15")
+    save_highscores(path, {"uniform_random": record})
     assert path.is_file()
 
 
