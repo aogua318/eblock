@@ -45,17 +45,17 @@ def collides(board: Board, x: int, y: int, cells: Cells) -> bool:
     cols = len(board[0])
     rows = len(board)
 
-    #与边界碰撞
+    # 与边界碰撞
     for dx, dy in cells:
         board_x, board_y = x + dx, y + dy
 
         # board_y < 0 进行下一格判定。
         if board_y < 0:
             continue
-        #x轴 y轴边界碰撞
+        # x轴 y轴边界碰撞
         if board_x < 0 or board_x >= cols or board_y >= rows:
             return True
-        #非None碰撞
+        # 非None碰撞
         if board[board_y][board_x] is not None:
             return True
 
@@ -93,13 +93,12 @@ def place(board: Board, piece_type: PieceType, x: int, y: int, cells: Cells) -> 
             continue
         # 显式越界校验：正常流程先经 collides 校验，这里防御调用方传入非法坐标。
         if board_x < 0 or board_x >= cols or board_y >= rows:
-            raise ValueError(
-                f"place 越界: 格子 ({board_x}, {board_y}) 超出 {rows}x{cols} 棋盘"
-            )
+            raise ValueError(f"place 越界: 格子 ({board_x}, {board_y}) 超出 {rows}x{cols} 棋盘")
         new_board_list[board_y][board_x] = piece_type  # 类型方便指定颜色
 
     new_board = tuple(tuple(item) for item in new_board_list)
     return new_board
+
 
 def clear_lines(board: Board) -> tuple[Board, int]:
     """消除所有满行并返回 (新棋盘, 消除行数)。
@@ -122,7 +121,7 @@ def clear_lines(board: Board) -> tuple[Board, int]:
     for row in board:
         if all(cell is not None for cell in row):
             cleared_count += 1
-        else:#如果不满行，则保留该行
+        else:  # 如果不满行，则保留该行
             kept_rows.append(row)
 
     # 顶部补足与消除行数相等的空行，保证总行数不变、消除后无悬空。

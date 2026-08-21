@@ -11,7 +11,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from eblock.tetris.sim.tetromino import Cells, PieceState, PieceType, SPAWN_SHAPES, spawn_cells
+from eblock.tetris.sim.tetromino import SPAWN_SHAPES, Cells, PieceState, PieceType, spawn_cells
 
 # 开发文档 §6.1 的出生态坐标（相对原点，x 向右 / y 向下）。
 _DOC_SHAPES: dict[PieceType, Cells] = {

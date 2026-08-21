@@ -50,9 +50,7 @@ def test_rotate_cells_o_unchanged() -> None:
 def test_cells_at_rotation_o_unchanged() -> None:
     """cells_at_rotation 对 O 方块任意状态返回出生态。"""
     for rotation in range(4):
-        assert set(cells_at_rotation(PieceType.O, rotation)) == set(
-            spawn_cells(PieceType.O)
-        )
+        assert set(cells_at_rotation(PieceType.O, rotation)) == set(spawn_cells(PieceType.O))
 
 
 def test_four_cw_rotations_return_to_original_cells() -> None:

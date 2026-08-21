@@ -36,8 +36,7 @@ _I_VERTICAL = PieceState(piece_type=PieceType.I, rotation=1, x=9, y=19)
 def _make_board(filled: set[tuple[int, int]]) -> Board:
     """构造 22×10 棋盘；filled 中的 (y, x) 坐标放置占位方块。"""
     return tuple(
-        tuple(PieceType.T if (y, x) in filled else None for x in range(COLS))
-        for y in range(ROWS)
+        tuple(PieceType.T if (y, x) in filled else None for x in range(COLS)) for y in range(ROWS)
     )
 
 
@@ -147,7 +146,7 @@ def test_move_blocked_by_stack() -> None:
 
 
 def test_successful_move_resets_lock_timer() -> None:
-    """接地后成功移动重置锁定计时：累计 800ms 未锁，再 101ms 才锁定。"""
+    """接地后成功移动重置锁定计时：累计 800ms 未锁，再 100ms 才锁定。"""
     current = PieceState(PieceType.T, 0, 4, 21)
     game = _new_game(_make_state(current=current))
     game.step(None, 400)
@@ -155,7 +154,7 @@ def test_successful_move_resets_lock_timer() -> None:
     result = game.step(None, 400)
     assert GameEvent.PIECE_LOCK not in result.events
     assert all(cell is None for row in result.state.board for cell in row)
-    result = game.step(None, 101)
+    result = game.step(None, 100)
     assert GameEvent.PIECE_LOCK in result.events
 
 
@@ -197,7 +196,8 @@ def test_rotate_kick_at_wall() -> None:
 def test_rotate_rejected_keeps_state() -> None:
     """五个踢墙偏移全部失败时，方块状态完全不变。"""
     current = PieceState(PieceType.T, 0, 4, 5)
-    filled = {(4, 6), (3, 4), (3, 7), (4, 3), (3, 3)}
+    # filled 集合元素为 (y, x)：依次封死 (0,0)、(−1,0)、(−1,1)、(0,−2)、(−1,−2) 五个偏移。
+    filled = {(6, 4), (4, 3), (7, 3), (3, 4), (3, 3)}
     game = _new_game(_make_state(current=current, filled=filled))
     result = game.step(Action.ROTATE_CW, 0)
     assert result.state.current.rotation == 0
@@ -257,17 +257,17 @@ def test_lock_writes_board() -> None:
     """自然锁定后当前方块写入棋盘。"""
     current = PieceState(PieceType.T, 0, 4, 21)
     game = _new_game(_make_state(current=current))
-    result = game.step(None, 501)
+    result = game.step(None, 500)
     assert GameEvent.PIECE_LOCK in result.events
     assert result.state.board[21][3] is not None
     assert result.state.board[20][4] is not None
 
 
 def test_lock_delay_after_grounding() -> None:
-    """接地后 500ms 不锁，+1ms 锁定。"""
+    """接地后达到 500ms 锁定：499ms 不锁，+1ms 锁定。"""
     current = PieceState(PieceType.T, 0, 4, 21)
     game = _new_game(_make_state(current=current))
-    result = game.step(None, 500)
+    result = game.step(None, 499)
     assert GameEvent.PIECE_LOCK not in result.events
     result = game.step(None, 1)
     assert GameEvent.PIECE_LOCK in result.events
@@ -346,24 +346,24 @@ def test_hold_first_time_takes_piece_and_spawns() -> None:
     first_type = game.to_state().current.piece_type
     result = game.step(Action.HOLD, 0)
     assert result.state.hold == first_type
+    assert result.state.hold_used is True
     assert result.state.current.piece_type != first_type
     assert result.state.current.y == CONFIG.board.spawn_y
     assert tuple(result.events) == (GameEvent.HOLD_SWAP, GameEvent.PIECE_SPAWN)
 
 
-def test_hold_swap_returns_piece() -> None:
-    """第二次保持：与 hold 槽交换，当前方块变回最初方块。"""
+def test_hold_ignored_until_next_drop() -> None:
+    """首次保持后本下落周期内再次 HOLD 被忽略：无事件、当前方块不变。"""
     game = Game(CONFIG, seed=0)
-    first_type = game.to_state().current.piece_type
     game.step(Action.HOLD, 0)
+    before = game.to_state()
     result = game.step(Action.HOLD, 0)
-    assert result.state.current.piece_type == first_type
-    assert result.state.hold is not None
-    assert result.state.hold != first_type
+    assert result.events == ()
+    assert result.state.current == before.current
 
 
 def test_hold_limited_once_per_drop() -> None:
-    """锁定前第三次保持被忽略：无事件、当前方块不变。"""
+    """保持每下落周期限一次：锁定前连续 HOLD 均被忽略。"""
     game = Game(CONFIG, seed=0)
     game.step(Action.HOLD, 0)
     game.step(Action.HOLD, 0)
@@ -374,13 +374,17 @@ def test_hold_limited_once_per_drop() -> None:
 
 
 def test_lock_resets_hold_used() -> None:
-    """锁定后 hold_used 复位，可以再次保持。"""
+    """锁定后 hold_used 复位：再次 HOLD 执行交换，换回最初方块。"""
     game = Game(CONFIG, seed=0)
+    first_type = game.to_state().current.piece_type
     game.step(Action.HOLD, 0)
-    game.step(Action.HARD_DROP, 0)
-    result = game.step(Action.HOLD, 0)
+    game.step(Action.HARD_DROP, 0)  # 锁定：hold_used 复位。
+    result = game.step(Action.HOLD, 0)  # 交换：hold 槽方块成为当前方块。
     assert GameEvent.HOLD_SWAP in result.events
     assert GameEvent.PIECE_SPAWN in result.events
+    assert result.state.current.piece_type == first_type
+    assert result.state.hold is not None
+    assert result.state.hold != first_type
 
 
 def test_hold_emits_hold_swap_and_spawn() -> None:
@@ -394,10 +398,7 @@ def test_hold_emits_hold_swap_and_spawn() -> None:
 def _game_over_state() -> GameState:
     """构造结束场景：T 落地后出生区仍有方块，下一块必碰撞。"""
     current = PieceState(PieceType.T, 0, 4, 0)
-    filled = (
-        {(0, col) for col in (0, 1, 2, 6, 7, 8)}
-        | {(1, col) for col in range(1, 10)}
-    )
+    filled = {(0, col) for col in (0, 1, 2, 6, 7, 8)} | {(1, col) for col in range(1, 10)}
     # 不凑满任何一行，保证锁定后不会消行。
     return _make_state(current=current, filled=filled)
 
@@ -449,7 +450,8 @@ def test_load_state_preserves_bag_sequence() -> None:
     state = _make_state(current=_T, next_queue=next_queue)
     game_a = _new_game(state, seed=1)
     game_b = _new_game(state, seed=2)
-    for expected in next_queue:
+    # SevenBag.next() 从袋尾弹出，因此 (I, O, T) 的出块顺序是 T、O、I。
+    for expected in (PieceType.T, PieceType.O, PieceType.I):
         game_a.step(Action.HARD_DROP, 0)
         game_b.step(Action.HARD_DROP, 0)
         assert game_a.to_state().current.piece_type == expected

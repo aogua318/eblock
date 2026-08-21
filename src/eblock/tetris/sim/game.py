@@ -20,8 +20,14 @@ from eblock.tetris.config import TetrisConfig
 from eblock.tetris.sim.board import Board, clear_lines, collides, empty_board, place
 from eblock.tetris.sim.randomizer import Randomizer, create_randomizer
 from eblock.tetris.sim.rotation import cells_at_rotation, try_rotation
-from eblock.tetris.sim.scoring import gravity_interval_ms, line_clear_score, level_after_lines
-from eblock.tetris.sim.tetromino import PieceState, PieceType, Cells
+from eblock.tetris.sim.scoring import (
+    gravity_interval_ms,
+    hard_drop_score,
+    level_after_lines,
+    line_clear_score,
+    soft_drop_score,
+)
+from eblock.tetris.sim.tetromino import Cells, PieceState, PieceType
 
 
 class Action(Enum):
@@ -196,10 +202,10 @@ class Game:
         events: list[GameEvent] = []
 
         # 2. 处理 action（动作表逐条实现）。
-        if action is Action.MOVE_LEFT: # 左移
-            #获取方块和它的状态
+        if action is Action.MOVE_LEFT:  # 左移
+            # 获取方块和它的状态
             cells = cells_at_rotation(self._current.piece_type, self._current.rotation)
-            #判断方块相对格左移一格是否碰撞
+            # 判断方块相对格左移一格是否碰撞
             if not collides(self._board, self._current.x - 1, self._current.y, cells):
                 self._current = PieceState(
                     self._current.piece_type,
@@ -209,7 +215,7 @@ class Game:
                 )
 
                 self._after_successful_move(events)
-        elif action is Action.MOVE_RIGHT:# 右移
+        elif action is Action.MOVE_RIGHT:  # 右移
             cells = cells_at_rotation(self._current.piece_type, self._current.rotation)
             if not collides(self._board, self._current.x + 1, self._current.y, cells):
                 self._current = PieceState(
@@ -220,29 +226,34 @@ class Game:
                 )
                 # 事件更新
                 self._after_successful_move(events)
-        elif action is Action.ROTATE_CW:# 顺时针转
+        elif action is Action.ROTATE_CW:  # 顺时针转
             rotated = try_rotation(self._current, True, self._check_collision)
             if rotated is not self._current:
                 self._current = rotated
                 self._after_successful_move(events)
-        elif action is Action.ROTATE_CCW:# 逆时针转
+        elif action is Action.ROTATE_CCW:  # 逆时针转
             # 返回旋转后的方块
             rotated = try_rotation(self._current, False, self._check_collision)
             # 如果旋转后不是原来的对象
             if rotated is not self._current:
-                #更改指向方块
+                # 更改指向方块
                 self._current = rotated
                 # 事件更新
                 self._after_successful_move(events)
-        elif action is Action.SOFT_DROP_START:# 软降
+        elif action is Action.SOFT_DROP_START:  # 软降
             self._soft_active = True
+            # 刷新下降时间
             self._soft_accum_ms = 0
-        elif action is Action.SOFT_DROP_END:# 结束软降
+        elif action is Action.SOFT_DROP_END:  # 结束软降
             self._soft_active = False
             self._soft_accum_ms = 0
-        elif action is Action.HARD_DROP:# 硬降
+        elif action is Action.HARD_DROP:  # 硬降
+            # 计算硬降格数
             distance = self._drop_distance()
-            self._score += self._config.scoring.hard_drop_per_cell * distance
+            # 硬降计分：下移格数 × 每格分值，换算统一走 scoring 模块。
+            self._score += hard_drop_score(distance, self._config.scoring.hard_drop_per_cell)
+
+            # 改变方块位置
             self._current = PieceState(
                 self._current.piece_type,
                 self._current.rotation,
@@ -250,13 +261,15 @@ class Game:
                 self._current.y + distance,
             )
             self._lock(events)  # 硬降立即锁定，不走锁定延迟。
-        elif action is Action.HOLD:# 交换方块
-            if not self._hold_used:
-                if self._hold is None:
+        elif action is Action.HOLD:  # 交换方块
+            if not self._hold_used:  # 没有用过交换
+                if self._hold is None:  # 锁定框为空
                     # 首次保持：存入当前方块，从发牌器取新块出生。
                     self._hold = self._current.piece_type
                     self._hold_used = True
+                    # 添加事件
                     events.append(GameEvent.HOLD_SWAP)
+                    # 生成新方块
                     self._spawn_piece(self._randomizer.next(), events)
                 else:
                     # 交换：当前方块换成 hold 槽中的方块。
@@ -267,53 +280,62 @@ class Game:
                     self._spawn_piece(held_type, events)
 
         # 3. 软降计时：每满 soft_drop_interval_ms 下移一格；触底立即锁定并跳过第 4、5 步。
-        if self._soft_active:
-            self._soft_accum_ms += dt_ms
+        if self._soft_active:  # 软降开
+            self._soft_accum_ms += dt_ms  # 时间流逝
             interval = self._config.timing.soft_drop_interval_ms
-            while self._soft_accum_ms >= interval:
+            while self._soft_accum_ms >= interval:  # 是否大于软降时间
                 self._soft_accum_ms -= interval
-                cells = cells_at_rotation(self._current.piece_type, self._current.rotation)
-                if not collides(self._board, self._current.x, self._current.y + 1, cells):
-                    self._current = PieceState(
+                cells = cells_at_rotation(  # 获取方块
+                    self._current.piece_type, self._current.rotation
+                )
+                if not collides(  # 没有碰撞
+                    self._board, self._current.x, self._current.y + 1, cells
+                ):
+                    self._current = PieceState(  # 移动
                         self._current.piece_type,
                         self._current.rotation,
                         self._current.x,
                         self._current.y + 1,
                     )
-                    self._score += self._config.scoring.soft_drop_per_cell
-                else:
-                    self._lock(events)
-                    return StepResult(tuple(events), self.to_state())
+                    # 软降计分：每成功下移一格加一次，换算统一走 scoring 模块。
+                    self._score += soft_drop_score(1, self._config.scoring.soft_drop_per_cell)
+                else:  # 撞了
+                    self._lock(events)  # 锁定
+                    return StepResult(tuple(events), self.to_state())  # 返回帧事件
 
         # 4. 重力计时：仅未接地时累加，每满当前等级间隔下移一格。
-        if not self._grounded:
-            interval = gravity_interval_ms(
+        if not self._grounded:  # 没有接地
+            interval = gravity_interval_ms(  # 根据等级获取下落时间间隔
                 self._level,
                 self._config.gravity_ms_per_level,
                 self._config.max_level,
             )
-            self._gravity_accum_ms += dt_ms
-            while self._gravity_accum_ms >= interval:
-                self._gravity_accum_ms -= interval
-                cells = cells_at_rotation(self._current.piece_type, self._current.rotation)
-                if not collides(self._board, self._current.x, self._current.y + 1, cells):
-                    self._current = PieceState(
+            self._gravity_accum_ms += dt_ms  # 时间流逝
+            while self._gravity_accum_ms >= interval:  # 是否大于重力时间
+                self._gravity_accum_ms -= interval  # 减去一次花费的时间
+                cells = cells_at_rotation(  # 获取方块
+                    self._current.piece_type, self._current.rotation
+                )
+                if not collides(  # y+1 没有撞
+                    self._board, self._current.x, self._current.y + 1, cells
+                ):
+                    self._current = PieceState(  # 更新方块
                         self._current.piece_type,
                         self._current.rotation,
                         self._current.x,
                         self._current.y + 1,
                     )
-                    self._grounded = self._is_grounded()
-                else:
-                    self._grounded = True
-                    self._gravity_accum_ms = 0
-                    break
+                    self._grounded = self._is_grounded()  # 判断是否触底
+                else:  # y+1 撞了
+                    self._grounded = True  # 触底
+                    self._gravity_accum_ms = 0  # 重制重力时间
+                    break  # 退出循环，执行下一步 锁定
 
         # 5. 锁定计时：接地后累计，达到 lock_delay_ms 执行锁定流程。
-        if self._grounded:
-            self._lock_accum_ms += dt_ms
-            if self._lock_accum_ms >= self._config.timing.lock_delay_ms:
-                self._lock(events)
+        if self._grounded:  # 接地了
+            self._lock_accum_ms += dt_ms  # 时间流逝
+            if self._lock_accum_ms >= self._config.timing.lock_delay_ms:  # 锁定时间到了
+                self._lock(events)  # 锁定
 
         # 6. 返回本帧事件与帧末快照。
         return StepResult(tuple(events), self.to_state())
@@ -344,13 +366,13 @@ class Game:
         参数:
             events: 本帧事件列表；可能被 _lock 追加事件。
         """
-        #判断是否接地
+        # 判断是否接地
         self._grounded = self._is_grounded()
-        if self._grounded:# 前提：移动/旋转后仍然接地
-            self._lock_accum_ms = 0    # 1、 锁定倒计时清零 → 重新获得完整的 500ms
-            self._lock_reset_count += 1 # 2、 记录"续了一次命"
-            if self._lock_reset_count > self._config.timing.lock_reset_limit: # 续太多
-                self._lock(events)  #3、立即锁定，不再给机会
+        if self._grounded:  # 前提：移动/旋转后仍然接地
+            self._lock_accum_ms = 0  # 1、 锁定倒计时清零 → 重新获得完整的 500ms
+            self._lock_reset_count += 1  # 2、 记录"续了一次命"
+            if self._lock_reset_count > self._config.timing.lock_reset_limit:  # 续太多
+                self._lock(events)  # 3、立即锁定，不再给机会
 
     def _drop_distance(self) -> int:
         """当前方块从当前位置连续下移到碰撞前的格数（硬降与 ghost 共用）。
@@ -360,9 +382,7 @@ class Game:
         """
         cells = cells_at_rotation(self._current.piece_type, self._current.rotation)
         distance = 0
-        while not collides(
-            self._board, self._current.x, self._current.y + distance + 1, cells
-        ):
+        while not collides(self._board, self._current.x, self._current.y + distance + 1, cells):
             distance += 1
         return distance
 
@@ -389,7 +409,7 @@ class Game:
         self._lock_accum_ms = 0
         self._lock_reset_count = 0
         self._soft_active = False
-        self._grounded = False
+        self._grounded = self._is_grounded()  # 判断刚出生时候是否接地
         # 新方块生成事件
         events.append(GameEvent.PIECE_SPAWN)
         # 出生碰撞检查：含 y>=0 的格与棋盘碰撞即结束，GAME_OVER 整个对局仅此一次。
@@ -421,9 +441,7 @@ class Game:
             # 添加消除事件
             events.append(GameEvent.LINES_CLEARED)
             # 增加分数
-            self._score += line_clear_score(
-                cleared, self._level, self._config.scoring.line_clear
-            )
+            self._score += line_clear_score(cleared, self._level, self._config.scoring.line_clear)
             # 增加消除行数
             self._lines += cleared
             # 计算新等级
@@ -433,7 +451,7 @@ class Game:
                 self._config.scoring.start_level,
             )
             # 判断等级是否提升
-            if new_level != self._level:
+            if new_level > self._level:
                 # 等级提升事件
                 events.append(GameEvent.LEVEL_UP)
                 self._level = new_level
@@ -441,8 +459,6 @@ class Game:
         self._hold_used = False
         # 生成新方块 参照next里的
         self._spawn_piece(self._randomizer.next(), events)
-
-        
 
     def to_state(self) -> GameState:
         """生成当前对局的不可变快照。
@@ -463,7 +479,18 @@ class Game:
             3. 用上述字段与 _board/_current/_hold/_hold_used/_score/
                _level/_lines/_game_over 构造并返回 GameState。
         """
-        ...
+        return GameState(
+            board=self._board,
+            current=self._current,
+            ghost_y=self._current.y + self._drop_distance(),
+            next_queue=self._randomizer.save_queue(),
+            hold=self._hold,
+            hold_used=self._hold_used,
+            score=self._score,
+            level=self._level,
+            lines=self._lines,
+            game_over=self._game_over,
+        )
 
     def load_state(self, state: GameState) -> None:
         """从快照恢复对局（存档读档），并重置全部计时器。
@@ -485,7 +512,25 @@ class Game:
             4. 重算接地：_grounded = 当前方块「不可再下移一格」
                （即 collides(棋盘, x, y+1, 当前格子) 为 True）。
         """
-        ...
+        # 1. 恢复对局字段。
+        self._board = state.board
+        self._current = state.current
+        self._hold = state.hold
+        self._hold_used = state.hold_used
+        self._score = state.score
+        self._level = state.level
+        self._lines = state.lines
+        self._game_over = state.game_over
+        # 2. 恢复发牌器袋余量（uniform 模式只接受空队列）。
+        self._randomizer.load_queue(state.next_queue)
+        # 3. 重置全部计时器与软降状态。
+        self._gravity_accum_ms = 0
+        self._soft_accum_ms = 0
+        self._lock_accum_ms = 0
+        self._lock_reset_count = 0
+        self._soft_active = False
+        # 4. 按恢复后的棋盘与当前方块重算接地状态。
+        self._grounded = self._is_grounded()
 
     def restart(self) -> None:
         """重开一局：等价于用新随机种子（seed=None）重新构造本对局。
@@ -499,7 +544,5 @@ class Game:
         实现流程:
             - 推荐：self.__init__(self._config)（seed 缺省为 None，
               新对局不可复现、与旧局完全无关）；
-            - 或：手工把所有字段重置为初始值并重新 spawn 首块。
-            两种方式最终状态必须与「新建 Game」一致。
         """
-        ...
+        self.__init__(self._config)

@@ -7,11 +7,6 @@
     - 重复调用结果稳定（幂等）。
 """
 
-import json
-from dataclasses import FrozenInstanceError
-
-import pytest
-
 from eblock.tetris.config import (
     DEFAULT_CONFIG_PATH,
     TetrisConfig,
@@ -30,4 +25,3 @@ def test_load_default_config_returns_config() -> None:
     """直接调用 load_default_config() 返回 TetrisConfig 实例。"""
     config = load_default_config()
     assert isinstance(config, TetrisConfig)
-

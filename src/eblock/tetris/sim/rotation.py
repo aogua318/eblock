@@ -11,7 +11,7 @@ from eblock.tetris.sim.tetromino import Cells, PieceState, PieceType, spawn_cell
 # 官方表 y 向上；应用时 y 取反。键为 (from_rotation, to_rotation)
 KICK_TABLE: dict[tuple[int, int], tuple[tuple[int, int], ...]] = {
     # JLSTZ 方块的 SRS 踢墙表。
-    #旋转前后状态：原点偏移序列，先尝试(0, 0)，再尝试(1, 0),再尝试(-1, 1)...
+    # 旋转前后状态：原点偏移序列，先尝试(0, 0)，再尝试(1, 0),再尝试(-1, 1)...
     (0, 1): ((0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)),
     (1, 0): ((0, 0), (1, 0), (1, -1), (0, 2), (1, 2)),
     (1, 2): ((0, 0), (1, 0), (1, -1), (0, 2), (1, 2)),
@@ -160,10 +160,10 @@ def try_rotation(
     """
     old_rotation = current.rotation
     new_rotation = (old_rotation + (1 if cw else -1)) % 4
-    #返回旋转后的新格子集合
+    # 返回旋转后的新格子集合
     cells = cells_at_rotation(current.piece_type, new_rotation)
 
-    #根据方块种类获取对应的踢墙表
+    # 根据方块种类获取对应的踢墙表
     kicks: tuple[tuple[int, int], ...]
     if current.piece_type is PieceType.O:
         kicks = ((0, 0),)
@@ -173,8 +173,8 @@ def try_rotation(
         kicks = KICK_TABLE[(old_rotation, new_rotation)]
 
     for kick_x, kick_y in kicks:
-        x = current.x + kick_x  #当前坐标+相对偏移
-        y = current.y - kick_y  #当前坐标-相对偏移  y轴的移动与踢墙表数据相反
+        x = current.x + kick_x  # 当前坐标+相对偏移
+        y = current.y - kick_y  # 当前坐标-相对偏移  y轴的移动与踢墙表数据相反
         if not collides(x, y, cells):
             return PieceState(current.piece_type, new_rotation, x, y)
 
